@@ -60,10 +60,7 @@ alias l='lsd --group-dirs=first'
 alias lla='lsd -lha --group-dirs=first'
 alias ls='lsd --group-dirs=first'
 alias cat='batcat'
-alias clear-zsh-history='rm $HISTFILE'
-alias more-light='sudo brightnessctl set +5%'
-alias less-light='sudo brightnessctl set 5-%'
-alias set-volumen='pamix'
+alias clear-histfile='rm $HISTFILE'
 alias c='clear'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
@@ -78,17 +75,6 @@ function mkt(){
         mkdir {nmap,content,exploits,scripts}
 }
 
-# Extract nmap information
-function extractPorts(){
-        ports="$(cat $1 | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')"
-        ip_address="$(cat $1 | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
-        echo -e "\n[*] Extracting information...\n" > extractPorts.tmp
-        echo -e "\t[*] IP Address: $ip_address"  >> extractPorts.tmp
-        echo -e "\t[*] Open ports: $ports\n"  >> extractPorts.tmp
-        echo $ports | tr -d '\n' | xclip -sel clip
-        echo -e "[*] Ports copied to clipboard\n"  >> extractPorts.tmp
-        cat extractPorts.tmp; rm extractPorts.tmp
-}
 
 # Set 'man' colors
 function man() {
