@@ -133,11 +133,11 @@ def nvim():
 
     # Instalar Nvim
     os.system("sudo apt install curl")
-    os.system("curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim.appimage")
-    os.system("chmod u+x nvim.appimage")
-    os.system("./nvim.appimage --appimage-extract")
-    os.system("sudo mv squashfs-root /")
-    os.system("sudo ln -s /squashfs-root/AppRun /usr/bin/nvim")
+    os.system("curl -LO https://github.com/neovim/neovim/releases/download/v0.11.1/nvim-linux-x86_64.appimage")
+    os.system("chmod u+x nvim-linux-x86_64.appimage")
+    os.system("./nvim-linux-x86_64.appimage --appimage-extract")
+    os.system("sudo mv squashfs-root nvim ")
+    os.system("sudo mv nvim /usr/bin")
 
     # Configurar Nvim en usuario y root
     os.system("git clone https://github.com/NvChad/starter ~/.config/nvim")
