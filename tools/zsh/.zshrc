@@ -63,8 +63,8 @@ alias cat='batcat'
 alias clear-histfile='rm $HISTFILE'
 alias c='clear'
 alias nvim='/usr/bin/nvim/AppRun'
-alias update='sudo apt update && sudo apt full-upgrade -y'
-alias autoremove='sudo apt autoclean && sudo apt autoremove'
+alias update='sudo apt update && sudo apt full-upgrade -y && sudo flatpak update'
+alias autoclean='sudo apt autoclean && sudo apt autoremove'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
