@@ -35,7 +35,7 @@
     dir                     # current directory
     command_execution_time
     context
-    #vcs                     # git status
+    vcs                     # git status
     #prompt_char           # prompt symbol
   )
 
