@@ -78,7 +78,7 @@ def p10k():
 
 def hnf():
     # Instalar Hack Nerd Fonts
-    os.system("wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Hack.zip")
+    os.system("wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
     os.system("unzip -o Hack.zip")
     os.system("sudo cp -r Hack*.ttf /usr/share/fonts ")
     os.system("sudo rm -r Hack*")
