@@ -2,17 +2,10 @@
 # Fix the Java Problem
 export _JAVA_AWT_WM_NONREPARENTING=1
 
-# Enable Powerlevel10k instant prompt. Should stay at the top of ~/.zshrc.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
 
 # Set up the prompt
-
 autoload -Uz promptinit
 promptinit
-prompt adam1
-
 setopt histignorealldups sharehistory
 
 # Use emacs keybindings even if our EDITOR is set to vi
@@ -46,9 +39,6 @@ zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-
 # Manual configuration
 
 PATH=/root/.local/bin:/snap/bin:/usr/sandbox/:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/usr/share/games:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
@@ -59,12 +49,12 @@ alias la='lsd -a --group-dirs=first'
 alias l='lsd --group-dirs=first'
 alias lla='lsd -lha --group-dirs=first'
 alias ls='lsd --group-dirs=first'
-alias cat='batcat'
+alias cat='bat'
 alias clear-histfile='rm $HISTFILE'
 alias c='clear'
 alias nvim='/usr/bin/nvim/AppRun'
 alias update='sudo apt update && sudo apt full-upgrade -y && sudo flatpak update'
-alias autoclean='sudo apt autoclean && sudo apt autoremove'
+alias autoremove='sudo apt autoclean && sudo apt autoremove'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
@@ -74,10 +64,6 @@ source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh-sudo/sudo.plugin.zsh
 
 # Functions
-function mkt(){
-        mkdir {nmap,content,exploits,scripts}
-}
-
 
 # Set 'man' colors
 function man() {
@@ -92,43 +78,12 @@ function man() {
     man "$@"
 }
 
-# fzf improvement
-function fzf-lovely(){
-
-        if [ "$1" = "h" ]; then
-                fzf -m --reverse --preview-window down:20 --preview '[[ $(file --mime {}) =~ binary ]] &&
-                        echo {} is a binary file ||
-                         (batcat --style=numbers --color=always {} ||
-                          highlight -O ansi -l {} ||
-                          coderay {} ||
-                          rougify {} ||
-                          cat {}) 2> /dev/null | head -500'
-
-        else
-                fzf -m --preview '[[ $(file --mime {}) =~ binary ]] &&
-                                 echo {} is a binary file ||
-                                 (batcat --style=numbers --color=always {} ||
-                                  highlight -O ansi -l {} ||
-                                  coderay {} ||
-                                  rougify {} ||
-                                  cat {}) 2> /dev/null | head -500'
-        fi
-}
-
-function rmk(){
-        scrub -p dod $1
-        shred -zun 10 -v $1
-}
-
 # key-bindings zsh
   if [ -x "$(command -v fzf)"  ]
     then
     source /usr/share/doc/fzf/examples/key-bindings.zsh
   fi
 
-# Finalize Powerlevel10k instant prompt. Should stay at the bottom of ~/.zshrc.
-(( ! ${+functions[p10k-instant-prompt-finalize]} )) || p10k-instant-prompt-finalize
-source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 #Teclado
 bindkey "^[[H" beginning-of-line
@@ -154,3 +109,4 @@ zle -N zle-keymap-select
  
 # Start with beam shape cursor on zsh startup and after every command.
 zle-line-init() { zle-keymap-select 'beam'}
+eval "$(starship init zsh)"

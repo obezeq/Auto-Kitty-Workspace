@@ -1,14 +1,18 @@
 # Auto-Kitty-Workspace
-Automates the installation and configuration of a workspace environment in the popular Kitty terminal, with ZSH, Powerlevel10k, NvChad, FZF, NordVPN compatibility, and more.
+It automates the installation and configuration of a workspace environment in the popular Kitty terminal, using the Catppuccin theme. Includes:
+- **ZSH** with a pastel **Starship** theme.
+- **FZF** for an improved terminal UI.
+- **Neovim** with **NvChad**.
+- **Personal shortcuts** for an easier life.
 
-It is compatible with any Ubuntu-based distribution. Tested on Linux Mint 22 (Wilma) and Ubuntu 24.04 LTS.
+It is compatible with any Debian-based distribution. Tested on Linux Mint 22.1 (Xia) and Ubuntu 24.04 (Noble Numbat).
 
 # Overview
 ![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/Vista.png)
 
 # Installation
+You must have Git installed!!
 ```
-sudo apt install git
 git clone https://github.com/Juanfu224/Auto-Kitty-Workspace.git ~/Auto-Kitty-Workspace
 cd ~/Auto-Kitty-Workspace
 python3 main.py
@@ -18,7 +22,7 @@ python3 main.py
 The script consists of several distinct functions:
 - **Install and configure Kitty**: Terminal emulator for advanced users.
 
-- **Install and configure Powerlevel10k in ZSH**: ZSH theme that provides a fast and highly customizable prompt.
+- **Install and configure Starship in ZSH**: ZSH theme that provides a fast and highly customizable prompt.
 
 - **Configure Neovim with NvChad**: Neovim configuration for developers, providing a modern and modular text editing experience.
 
@@ -27,11 +31,9 @@ The script consists of several distinct functions:
 - **Provide plugins**: Includes Zsh-autosuggestions, Zsh-syntax-highlighting, bat, lsd, among others.
 
 # Important
-- To ensure Powerlevel10k works correctly in your terminal, you need to have Hack Nerd Fonts set in the font configuration. However, Kitty is already configured with everything necessary.
-
 - It is recommended to restart your system after completing the installation.
 
-## Reinstall Nvim:
+## Reinstall Neovim:
 If you have an older version of Neovim already installed, it is highly recommended to uninstall it and remove any residual files left on the system with the following commands:
 ```
 sudo rm -rf ~/.config/nvim
@@ -43,18 +45,16 @@ sudo rm -rf /root/.config/nvim
 ```
 Sometimes, errors may occur during the installation of Nvim, so you may need to rerun the script. This script already automatically removes all previous Nvim configurations.
 
-# Utilities:
+# Descriptions:
 - **Kitty**: Terminal emulator for advanced users.
 
-- **Powerlevel10k**: ZSH theme that provides a fast and highly customizable prompt.
+- **Starship**: Minimal, fast, and highly customizable shell prompt written in Rust, designed to work with any shell.
 
 - **zsh**: Powerful and developer-friendly shell, known for its robust configuration capabilities and plugins.
 
 - **FZF**: General-purpose command-line fuzzy finder, useful for searching files, commands, and more.
 
 - **Hack Nerd Font**: Primary font used, designed to improve readability and icon compatibility in terminals and code editors.
-
-- **NordVPN**: Virtual private network from Nord, used to maintain online privacy and security.
 
 - **NvChad**: Neovim configuration for developers, providing a modern and modular text editing experience.
 
