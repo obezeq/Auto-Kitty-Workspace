@@ -68,9 +68,12 @@ def light_blue():  # Azul claro
 
 
 """FUNCIONES PRINCIPALES"""
-def p10k():
-    # Aplicar config de p10k
-    os.system("git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k")
+def starship():
+    # Instalar Starship en user y root
+    os.system("curl -sS https://starship.rs/install.sh | sh")
+    os.system("sudo curl -sS https://starship.rs/install.sh | sh")
+    
+    # Aplicar tema catpuccino modificado
     os.system("sudo git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/powerlevel10k")
     os.system("cp -r ~/Auto-Kitty-Workspace/tools/zsh/.p10k.zsh ~/")
     os.system("sudo cp -r ~/Auto-Kitty-Workspace/tools/zsh/.p10k.zsh /root")
@@ -151,37 +154,31 @@ def cambiar_terminal():
 
 def instalar():
     # Instalar Kitty
-    orange()
     print("\n[+] Instalando la Kitty....\n")
     time.sleep(3)
     kitty()
 
     # Instalar zsh
-    orange()
     print("\n[+] Instalando ZSH....\n")
     time.sleep(3)
     zsh()
 
     # Instalar Hack Nerd Fonts
-    orange()
     print("\n[+] Instalando las Hack Nerd Fonts....\n")
     time.sleep(3)
     hnf()
 
-    # Aplicar config de p10k
-    orange()
-    print("\n[+] Instalando Powerlevel10k....\n")
+    # Aplicar config de starship
+    print("\n[+] Instalando Starship....\n")
     time.sleep(3)
-    p10k()
+    starship()
 
     # Instalar FZF
-    orange()
     print("\n[+] Instalando FZF....\n")
     time.sleep(3)
     fzf()
 
     # Instalar Nvim
-    orange()
     print("\n[+] Instalando Nvim....\n")
     time.sleep(3)
     nvim()
@@ -210,5 +207,5 @@ if __name__ == '__main__':
 
     # Mensaje final
     green()
-    print("\n[+] La instalación y la configuración de la terminal se ha realizado correctamente")
-    print("\n[+] Para que funcione correctamente Powerlevel10k en su terminal, es necesario tener las Hack Nerd Fonts puestas en la configuración de la tipografía. Aún así, Kitty ya viene configurada con todo lo necesario.\n")
+    print("\n[+] La instalación y la configuración de la terminal se ha realizado correctamente. Abra la terminal Kitty para comprobarlo")
+    print("Disfruta :)")
