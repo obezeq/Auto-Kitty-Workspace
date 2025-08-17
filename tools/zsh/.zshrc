@@ -49,12 +49,12 @@ alias la='lsd -a --group-dirs=first'
 alias l='lsd --group-dirs=first'
 alias lla='lsd -lha --group-dirs=first'
 alias ls='lsd --group-dirs=first'
-alias cat='batcat'
+alias cat='bat'
 alias clear-histfile='rm $HISTFILE'
 alias c='clear'
 alias nvim='/usr/bin/nvim/AppRun'
 alias update='sudo apt update && sudo apt full-upgrade -y && sudo flatpak update'
-alias autoclean='sudo apt autoclean && sudo apt autoremove'
+alias autoremove='sudo apt autoclean && sudo apt autoremove'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
@@ -64,10 +64,6 @@ source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh-sudo/sudo.plugin.zsh
 
 # Functions
-function mkt(){
-        mkdir {nmap,content,exploits,scripts}
-}
-
 
 # Set 'man' colors
 function man() {
@@ -80,34 +76,6 @@ function man() {
     LESS_TERMCAP_ue=$'\e[0m' \
     LESS_TERMCAP_us=$'\e[01;32m' \
     man "$@"
-}
-
-# fzf improvement
-function fzf-lovely(){
-
-        if [ "$1" = "h" ]; then
-                fzf -m --reverse --preview-window down:20 --preview '[[ $(file --mime {}) =~ binary ]] &&
-                        echo {} is a binary file ||
-                         (batcat --style=numbers --color=always {} ||
-                          highlight -O ansi -l {} ||
-                          coderay {} ||
-                          rougify {} ||
-                          cat {}) 2> /dev/null | head -500'
-
-        else
-                fzf -m --preview '[[ $(file --mime {}) =~ binary ]] &&
-                                 echo {} is a binary file ||
-                                 (batcat --style=numbers --color=always {} ||
-                                  highlight -O ansi -l {} ||
-                                  coderay {} ||
-                                  rougify {} ||
-                                  cat {}) 2> /dev/null | head -500'
-        fi
-}
-
-function rmk(){
-        scrub -p dod $1
-        shred -zun 10 -v $1
 }
 
 # key-bindings zsh
