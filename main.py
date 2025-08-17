@@ -162,7 +162,7 @@ def cambiar_terminal():
 def mostrar_progeso(texto):
     orange()
     print(texto)
-    white()  
+    white()
 
 def instalar():
     # Instalar Kitty
