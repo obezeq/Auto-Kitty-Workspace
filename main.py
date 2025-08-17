@@ -22,45 +22,57 @@ BANNER = """
 
 
 """COLORES"""
+
+
 def red():  # Rojo
     RED = "\033[1;31m"
     stdout.write(RED)
+
 
 def green():  # Verde
     GREEN = "\033[0;32m"
     stdout.write(GREEN)
 
+
 def blue():  # Azul
     BLUE = "\033[1;34m"
     stdout.write(BLUE)
+
 
 def yellow():  # Amarillo
     YELLOW = "\033[1;33m"
     stdout.write(YELLOW)
 
+
 def orange():  # Naranja
     ORANGE = "\033[1;38;5;208m"
     stdout.write(ORANGE)
+
 
 def white():  # Blanco
     WHITE = "\033[1;37m"
     stdout.write(WHITE)
 
+
 def purple():  # Morado
     PURPLE = "\033[1;35m"
     stdout.write(PURPLE)
+
 
 def cyan():  # Cian
     CYAN = "\033[1;36m"
     stdout.write(CYAN)
 
+
 def light_gray():  # Gris claro
     LIGHT_GRAY = "\033[0;37m"
     stdout.write(LIGHT_GRAY)
 
+
 def dark_gray():  # Gris oscuro
     DARK_GRAY = "\033[1;30m"
     stdout.write(DARK_GRAY)
+
 
 def light_blue():  # Azul claro
     LIGHT_BLUE = "\033[1;94m"
@@ -68,32 +80,37 @@ def light_blue():  # Azul claro
 
 
 """FUNCIONES PRINCIPALES"""
+
+
 def starship():
     # Instalar Starship en user y root
     os.system("curl -sS https://starship.rs/install.sh | sh")
     os.system("sudo curl -sS https://starship.rs/install.sh | sh")
-    
+
     # Aplicar tema catpuccino modificado
-    os.system("sudo git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/powerlevel10k")
-    os.system("cp -r ~/Auto-Kitty-Workspace/tools/zsh/.p10k.zsh ~/")
-    os.system("sudo cp -r ~/Auto-Kitty-Workspace/tools/zsh/.p10k.zsh /root")
+    os.system(
+        "cp ~/Auto-Kitty-Workspace-main/tools/starship/starship.toml ~/.config")
+    os.system(
+        "sudo cp ~/Auto-Kitty-Workspace-main/tools/starship/starship.toml ~/.config")
 
 
 def hnf():
     # Instalar Hack Nerd Fonts
-    os.system("wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
+    os.system(
+        "wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
     os.system("unzip -o Hack.zip")
-    os.system("sudo cp -r Hack*.ttf /usr/share/fonts ")
-    os.system("sudo rm -r Hack*")
+    for file in os.listdir():
+        if file.startswith("Hack"):
+            os.system(f"sudo mv {file} /usr/share/fonts")
+
 
 def kitty():
     # Configurar Kitty
-    os.system("sudo apt update")
     os.system("sudo apt install kitty -y")
     os.system("rm -rf ~/.config/kitty/*")  # borra config anterior
     os.system("mkdir -p ~/.config/kitty")
-    os.system("cp -r ~/Auto-Kitty-Workspace/tools/terminal/kitty.conf ~/.config/kitty")
-    os.system("cp -r ~/Auto-Kitty-Workspace/tools/terminal/color.ini ~/.config/kitty")
+    os.system("cp -r ~/Auto-Kitty-Workspace/tools/kitty/kitty.conf ~/.config/kitty")
+    os.system("cp -r ~/Auto-Kitty-Workspace/tools/kitty/color.ini ~/.config/kitty")
 
 
 def zsh():
@@ -102,25 +119,25 @@ def zsh():
     os.system("sudo usermod --shell /usr/bin/zsh $USER")
     os.system("sudo usermod --shell /usr/bin/zsh root")
 
-    # Aplicar config de zshrc
+    # Aplicar config de .zshrc
     os.system("cp -r ~/Auto-Kitty-Workspace/tools/zsh/.zshrc ~/")
     os.system("sudo cp -r ~/Auto-Kitty-Workspace/tools/zsh/.zshrc /root")
 
     # Instalar plugins
-    os.system("sudo wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh")
+    os.system(
+        "sudo wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh")
     os.system("sudo apt install zsh-autosuggestions zsh-syntax-highlighting -y")
-    os.system("sudo dpkg -i ~/Auto-Kitty-Workspace/tools/zsh/bat*")
-    os.system("sudo dpkg -i ~/Auto-Kitty-Workspace/tools/zsh/lsd*")
+    os.system("sudo dpkg -i ~/Auto-Kitty-Workspace/tools/zsh/plugins/*")
     os.system("sudo mkdir -p /usr/share/zsh-sudo")
-    os.system("sudo cp -r sudo.plugin.zsh /usr/share/zsh-sudo")
-    os.system("sudo rm -r ~/Auto-Kitty-Workspace/sudo.plugin*")
+    os.system("sudo mv sudo.plugin.zsh /usr/share/zsh-sudo")
 
 
 def fzf():
     # Instalar FZF en el usuario y root
     os.system("sudo apt install fzf -y")
     os.system("sudo git clone --depth=1 https://github.com/junegunn/fzf.git ~/.fzf")
-    os.system("sudo git clone --depth=1 https://github.com/junegunn/fzf.git /root/.fzf")
+    os.system(
+        "sudo git clone --depth=1 https://github.com/junegunn/fzf.git /root/.fzf")
     os.system("sudo ~/.fzf/install")
     os.system("sudo /root/.fzf/install")
 
@@ -136,7 +153,8 @@ def nvim():
 
     # Instalar Nvim
     os.system("sudo apt install curl")
-    os.system("curl -LO https://github.com/neovim/neovim/releases/download/v0.11.1/nvim-linux-x86_64.appimage")
+    os.system(
+        "curl -LO https://github.com/neovim/neovim/releases/download/v0.11.1/nvim-linux-x86_64.appimage")
     os.system("chmod u+x nvim-linux-x86_64.appimage")
     os.system("./nvim-linux-x86_64.appimage --appimage-extract")
     os.system("sudo mv squashfs-root nvim ")
@@ -189,15 +207,16 @@ if __name__ == '__main__':
     # Imprimir banner del programa
     purple()
     print(BANNER)
-    
+
     # Funcion principal
     instalar()
- 
+
  # Cambiar terminal por defecto
     time.sleep(2)
     blue()
     while True:
-        cambiar = input("\n¿Deseas cambiar la terminal por defecto? (s/n): ").lower()
+        cambiar = input(
+            "\n¿Deseas cambiar la terminal por defecto? (s/n): ").lower()
         if cambiar not in ["s", "n"]:
             print("\nSolo puedes responder 's' o 'n'\n")
             continue
@@ -208,4 +227,4 @@ if __name__ == '__main__':
     # Mensaje final
     green()
     print("\n[+] La instalación y la configuración de la terminal se ha realizado correctamente. Abra la terminal Kitty para comprobarlo")
-    print("Disfruta :)")
+    print("Disfruta <3")
