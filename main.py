@@ -85,13 +85,12 @@ def starship():
 
     # Aplicar tema catpuccino modificado
     os.system("cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml ~/.config")
-    os.system("sudo cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml ~/.config")
+    os.system("sudo cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml /root/.config")
 
 
 def hnf():
     # Instalar Hack Nerd Fonts
-    os.system(
-        "wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
+    os.system("wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
     os.system("unzip -o Hack.zip")
     for file in os.listdir():
         if file.startswith("Hack"):
@@ -118,8 +117,7 @@ def zsh():
     os.system("sudo cp -r ~/Auto-Kitty-Workspace/tools/zsh/.zshrc /root")
 
     # Instalar plugins
-    os.system(
-        "sudo wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh")
+    os.system("sudo wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh")
     os.system("sudo apt install zsh-autosuggestions zsh-syntax-highlighting git -y")
     os.system("sudo dpkg -i ~/Auto-Kitty-Workspace/tools/zsh/plugins/*")
     os.system("sudo mkdir -p /usr/share/zsh-sudo")
@@ -146,8 +144,7 @@ def nvim():
 
     # Instalar Nvim
     os.system("sudo apt install curl")
-    os.system(
-        "curl -LO https://github.com/neovim/neovim/releases/download/v0.11.1/nvim-linux-x86_64.appimage")
+    os.system("curl -LO https://github.com/neovim/neovim/releases/download/v0.11.3/nvim-linux-x86_64.appimage")
     os.system("chmod u+x nvim-linux-x86_64.appimage")
     os.system("./nvim-linux-x86_64.appimage --appimage-extract")
     os.system("sudo mv squashfs-root nvim ")
@@ -162,45 +159,47 @@ def cambiar_terminal():
     # Cambiar terminal
     os.system("sudo update-alternatives --config x-terminal-emulator")
 
+def mostrar_progeso(texto):
+    orange()
+    print(texto)
+    white()  
 
 def instalar():
     # Instalar Kitty
-    print("\n[+] Instalando la Kitty....\n")
+    mostrar_progeso("\n[+] Instalando la Kitty....\n")
     kitty()
 
     # Instalar zsh
-    print("\n[+] Instalando ZSH....\n")
+    mostrar_progeso("\n[+] Instalando ZSH....\n")
     time.sleep(3)
     zsh()
 
     # Instalar Hack Nerd Fonts
-    print("\n[+] Instalando las Hack Nerd Fonts....\n")
+    mostrar_progeso("\n[+] Instalando las Hack Nerd Fonts....\n")
     time.sleep(3)
     hnf()
 
     # Aplicar config de starship
-    print("\n[+] Instalando Starship....\n")
+    mostrar_progeso("\n[+] Instalando Starship....\n")
     time.sleep(3)
     starship()
 
     # Instalar FZF
-    print("\n[+] Instalando FZF....\n")
+    mostrar_progeso("\n[+] Instalando FZF....\n")
     time.sleep(3)
     fzf()
 
     # Instalar Nvim
-    print("\n[+] Instalando Nvim....\n")
+    mostrar_progeso("\n[+] Instalando Nvim....\n")
     time.sleep(3)
     nvim()
 
 
 """PROGRAMA PRINCIPAL"""
 if __name__ == '__main__':
-    # Imprimir banner del programa
+    # Imprimir banner del programa y instalar programa
     purple()
     print(BANNER)
-
-    # Funcion principal
     instalar()
 
  # Cambiar terminal por defecto
