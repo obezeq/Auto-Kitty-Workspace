@@ -81,7 +81,6 @@ def light_blue():  # Azul claro
 def starship():
     # Instalar Starship en user y root
     os.system("curl -sS https://starship.rs/install.sh | sh")
-    os.system("sudo curl -sS https://starship.rs/install.sh | sh")
 
     # Aplicar tema catpuccino modificado
     os.system("cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml ~/.config")
