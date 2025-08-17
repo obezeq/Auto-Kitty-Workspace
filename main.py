@@ -22,8 +22,6 @@ BANNER = """
 
 
 """COLORES"""
-
-
 def red():  # Rojo
     RED = "\033[1;31m"
     stdout.write(RED)
@@ -80,18 +78,14 @@ def light_blue():  # Azul claro
 
 
 """FUNCIONES PRINCIPALES"""
-
-
 def starship():
     # Instalar Starship en user y root
     os.system("curl -sS https://starship.rs/install.sh | sh")
     os.system("sudo curl -sS https://starship.rs/install.sh | sh")
 
     # Aplicar tema catpuccino modificado
-    os.system(
-        "cp ~/Auto-Kitty-Workspace-main/tools/starship/starship.toml ~/.config")
-    os.system(
-        "sudo cp ~/Auto-Kitty-Workspace-main/tools/starship/starship.toml ~/.config")
+    os.system("cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml ~/.config")
+    os.system("sudo cp ~/Auto-Kitty-Workspace/tools/starship/starship.toml ~/.config")
 
 
 def hnf():
@@ -126,7 +120,7 @@ def zsh():
     # Instalar plugins
     os.system(
         "sudo wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh")
-    os.system("sudo apt install zsh-autosuggestions zsh-syntax-highlighting -y")
+    os.system("sudo apt install zsh-autosuggestions zsh-syntax-highlighting git -y")
     os.system("sudo dpkg -i ~/Auto-Kitty-Workspace/tools/zsh/plugins/*")
     os.system("sudo mkdir -p /usr/share/zsh-sudo")
     os.system("sudo mv sudo.plugin.zsh /usr/share/zsh-sudo")
@@ -135,9 +129,8 @@ def zsh():
 def fzf():
     # Instalar FZF en el usuario y root
     os.system("sudo apt install fzf -y")
-    os.system("sudo git clone --depth=1 https://github.com/junegunn/fzf.git ~/.fzf")
-    os.system(
-        "sudo git clone --depth=1 https://github.com/junegunn/fzf.git /root/.fzf")
+    os.system("git clone --depth=1 https://github.com/junegunn/fzf.git ~/.fzf")
+    os.system("sudo git clone --depth=1 https://github.com/junegunn/fzf.git /root/.fzf")
     os.system("sudo ~/.fzf/install")
     os.system("sudo /root/.fzf/install")
 
@@ -173,7 +166,6 @@ def cambiar_terminal():
 def instalar():
     # Instalar Kitty
     print("\n[+] Instalando la Kitty....\n")
-    time.sleep(3)
     kitty()
 
     # Instalar zsh
@@ -215,8 +207,7 @@ if __name__ == '__main__':
     time.sleep(2)
     blue()
     while True:
-        cambiar = input(
-            "\n¿Deseas cambiar la terminal por defecto? (s/n): ").lower()
+        cambiar = input("\n¿Deseas cambiar la terminal por defecto? (s/n): ").lower()
         if cambiar not in ["s", "n"]:
             print("\nSolo puedes responder 's' o 'n'\n")
             continue
