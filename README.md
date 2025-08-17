@@ -8,7 +8,7 @@ It automates the installation and configuration of a workspace environment in th
 It is compatible with any Debian-based distribution. Tested on Linux Mint 22.1 (Xia) and Ubuntu 24.04 (Noble Numbat).
 
 # Overview
-![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/Vista.png)
+![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/images/Vista.png)
 
 # Installation
 You must have Git installed!!
