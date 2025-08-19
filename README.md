@@ -5,6 +5,8 @@
 	<img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/misc/transparent.png" height="30" width="0px"/>
 </h3>
 
+![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/Logo.png)
+
 # Auto-Kitty-Workspace
 It automates the installation and configuration of a workspace environment in the popular Kitty terminal, using the Catppuccin theme. Includes:
 - **ZSH** with a pastel **Starship** theme.
@@ -14,8 +16,6 @@ It automates the installation and configuration of a workspace environment in th
 
 It is compatible with any Debian-based distribution. Tested on Linux Mint 22.1 (Xia) and Ubuntu 24.04 (Noble Numbat).
 
-# Overview
-![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/images/Vista.png)
 
 # Installation
 You must have Git installed!!
