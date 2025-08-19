@@ -54,8 +54,6 @@ Sometimes, errors may occur during the installation of Nvim, so you may need to 
 
 - **FZF**: General-purpose command-line fuzzy finder, useful for searching files, commands, and more.
 
-- **Hack Nerd Font**: Primary font used, designed to improve readability and icon compatibility in terminals and code editors.
-
 - **NvChad**: Neovim configuration for developers, providing a modern and modular text editing experience.
 
 - **Zsh-autosuggestions**: Zsh plugin that suggests commands as you type based on your history.
