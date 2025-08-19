@@ -5,7 +5,7 @@
 	<img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/misc/transparent.png" height="30" width="0px"/>
 </h3>
 
-![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/Logo.png)
+![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/images/Logo.png)
 
 # Auto-Kitty-Workspace
 It automates the installation and configuration of a workspace environment in the popular Kitty terminal, using the Catppuccin theme. Includes:
