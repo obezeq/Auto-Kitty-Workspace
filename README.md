@@ -15,13 +15,13 @@
 
 ## Features
 
-- 🐚 **ZSH** with a pastel **Starship** prompt.  
-- 🔍 **FZF** for an improved terminal search experience.  
-- 📝 **Neovim** with the **NvChad** configuration.  
-- ⚡ **Custom shortcuts** for a faster workflow.  
+- **ZSH** with a pastel **Starship** prompt.  
+- **FZF** for an improved terminal search experience.  
+- **Neovim** with the **NvChad** configuration.  
+- **Custom shortcuts** for a faster workflow.  
 
-> ✅ Compatible with any Debian-based distribution.  
-> 🧪 Tested on **Linux Mint 22.1 (Xia)** and **Ubuntu 24.04 (Noble Numbat)**.
+> Compatible with any Debian-based distribution.  
+> Tested on **Linux Mint 22.1 (Xia)** and **Ubuntu 24.04 (Noble Numbat)**.
 
 
 
@@ -41,20 +41,20 @@ python3 main.py
 
 The installation script performs the following tasks:
 
-* **🐈 Kitty installation & configuration** — Sets up the terminal with Catppuccin theme and keyboard shortcuts.
-* **🌈 Starship + ZSH setup** — Installs a fast, customizable shell prompt with helpful plugins.
-* **🧠 Neovim (NvChad)** — Sets up a modern, modular development environment.
-* **🔎 FZF** — Adds fuzzy finding for commands, files, and history.
-* **🔌 Plugins & utilities** — Installs `zsh-autosuggestions`, `zsh-syntax-highlighting`, `bat`, `lsd`, and more.
+* **Kitty installation & configuration** — Sets up the terminal with Catppuccin theme and keyboard shortcuts.
+* **Starship + ZSH setup** — Installs a fast, customizable shell prompt with helpful plugins.
+* **Neovim (NvChad)** — Sets up a modern, modular development environment.
+* **FZF** — Adds fuzzy finding for commands, files, and history.
+* **Plugins & utilities** — Installs `zsh-autosuggestions`, `zsh-syntax-highlighting`, `bat`, `lsd`, and more.
 
 
 
 ## Important Notes
 
-* 🔁 It is **recommended to restart your system** after installation to apply all changes.
-* 🧹 The script automatically removes old Neovim configurations before installing NvChad.
+* It is **recommended to restart your system** after installation to apply all changes.
+* The script automatically removes old Neovim configurations before installing NvChad.
 
-### 🧼 Reinstalling Neovim (Clean Setup)
+### Reinstalling Neovim (Clean Setup)
 
 If you have an older Neovim version, remove any previous configurations before running the script:
 
@@ -93,7 +93,7 @@ If an error occurs during installation, rerun the script — it will automatical
 These shortcuts are configured in `kitty.conf` and help optimize navigation and workflow.
 
 
-### 🔁 Window Navigation
+### Window Navigation
 
 | Keys                           | Action                     | Description              |
 | ------------------------------ | -------------------------- | ------------------------ |
@@ -103,7 +103,7 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 | <kbd>Ctrl</kbd> + <kbd>↓</kbd> | `neighboring_window down`  | Move to the panel below. |
 
 
-### 📋 Copy & Paste Between Buffers
+### Copy & Paste Between Buffers
 
 | Keys          | Action                | Description                     |
 | ------------- | --------------------- | ------------------------------- |
@@ -114,7 +114,7 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 
 
 
-### 🪟 Window & Tab Management
+### Window & Tab Management
 
 | Keys                                                  | Action                | Description                                     |
 | ----------------------------------------------------- | --------------------- | ----------------------------------------------- |
@@ -124,7 +124,7 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 
 
 
-### 🧠 Command History
+### Command History
 
 | Keys                           | Description                          |
 | ------------------------------ | ------------------------------------ |
