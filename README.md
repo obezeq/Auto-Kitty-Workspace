@@ -21,7 +21,7 @@
 - **Custom shortcuts** for a faster workflow.  
 
 > Compatible with any Debian-based distribution.  
-> Tested on **Linux Mint 22.1 (Xia)** and **Ubuntu 24.04 (Noble Numbat)**.
+> Tested on **Linux Mint 22.3 (Zena)** and **Ubuntu 24.04 (Noble Numbat)**.
 
 
 
