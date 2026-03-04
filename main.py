@@ -104,6 +104,12 @@ def kitty():
     os.system("mkdir -p ~/.local/bin")
     os.system("ln -sf ~/.local/kitty.app/bin/kitty ~/.local/bin/kitty")
     os.system("ln -sf ~/.local/kitty.app/bin/kitten ~/.local/bin/kitten")
+    # Integracion con el escritorio (menu de aplicaciones, iconos)
+    os.system("mkdir -p ~/.local/share/applications")
+    os.system("cp ~/.local/kitty.app/share/applications/kitty.desktop ~/.local/share/applications/")
+    os.system("cp ~/.local/kitty.app/share/applications/kitty-open.desktop ~/.local/share/applications/")
+    os.system('sed -i "s|Icon=kitty|Icon=$(readlink -f ~)/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" ~/.local/share/applications/kitty*.desktop')
+    os.system('sed -i "s|Exec=kitty|Exec=$(readlink -f ~)/.local/kitty.app/bin/kitty|g" ~/.local/share/applications/kitty*.desktop')
     # Copiar config
     os.system("rm -rf ~/.config/kitty/*")
     os.system("mkdir -p ~/.config/kitty")
@@ -161,8 +167,12 @@ def nvim():
 
 
 def cambiar_terminal():
-    # Cambiar terminal
-    os.system("sudo update-alternatives --config x-terminal-emulator")
+    # Informar al usuario como establecer Kitty como terminal por defecto
+    yellow()
+    print("\n[!] Kitty se ha instalado como aplicacion de usuario (~/.local/kitty.app/)")
+    print("[!] Para establecerla como terminal por defecto:")
+    print("    -> Configuracion del sistema > Aplicaciones preferidas > Terminal")
+    white()
 
 def mostrar_progeso(texto):
     orange()
