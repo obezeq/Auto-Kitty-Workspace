@@ -88,18 +88,24 @@ def starship():
 
 
 def hnf():
-    # Instalar Hack Nerd Fonts
+    # Instalar Hack Nerd Fonts (en directorio de usuario, sin sudo)
     os.system("wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip")
     os.system("unzip -o Hack.zip")
+    os.system("mkdir -p ~/.local/share/fonts")
     for file in os.listdir():
         if file.startswith("Hack"):
-            os.system(f"sudo mv {file} /usr/share/fonts")
+            os.system(f"mv {file} ~/.local/share/fonts/")
+    os.system("fc-cache -fv")
 
 
 def kitty():
-    # Configurar Kitty
-    os.system("sudo apt install kitty -y")
-    os.system("rm -rf ~/.config/kitty/*")  # borra config anterior
+    # Instalar Kitty (binario oficial, la version de apt esta muy desactualizada)
+    os.system("curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin")
+    os.system("mkdir -p ~/.local/bin")
+    os.system("ln -sf ~/.local/kitty.app/bin/kitty ~/.local/bin/kitty")
+    os.system("ln -sf ~/.local/kitty.app/bin/kitten ~/.local/bin/kitten")
+    # Copiar config
+    os.system("rm -rf ~/.config/kitty/*")
     os.system("mkdir -p ~/.config/kitty")
     os.system("cp -r ~/Auto-Kitty-Workspace/tools/kitty/kitty.conf ~/.config/kitty")
     os.system("cp -r ~/Auto-Kitty-Workspace/tools/kitty/color.ini ~/.config/kitty")
@@ -143,7 +149,7 @@ def nvim():
 
     # Instalar Nvim
     os.system("sudo apt install curl")
-    os.system("curl -LO https://github.com/neovim/neovim/releases/download/v0.11.3/nvim-linux-x86_64.appimage")
+    os.system("curl -LO https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.appimage")
     os.system("chmod u+x nvim-linux-x86_64.appimage")
     os.system("./nvim-linux-x86_64.appimage --appimage-extract")
     os.system("sudo mv squashfs-root nvim ")
