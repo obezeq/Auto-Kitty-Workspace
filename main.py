@@ -372,10 +372,34 @@ def nvim():
 
 
 def cambiar_terminal():
-    yellow()
-    print("\n[!] Kitty se ha instalado como aplicacion de usuario (~/.local/kitty.app/)")
-    print("[!] Para establecerla como terminal por defecto:")
-    print("    -> Configuracion del sistema > Aplicaciones preferidas > Terminal")
+    mostrar_progeso("\n[+] Setting kitty as the system default terminal...\n")
+
+    kitty_bin = HOME / ".local" / "kitty.app" / "bin" / "kitty"
+
+    # Cinnamon: panel keybind (Ctrl+Alt+T), nemo "Open Terminal Here", and
+    # Mint's "Preferred Applications" GUI all read these two keys. The
+    # exec-arg='--' matches X-TerminalArgExec in the kitty .desktop file —
+    # kitty uses '--' as the separator before the command to run, not '-e'.
+    run(["gsettings", "set",
+         "org.cinnamon.desktop.default-applications.terminal",
+         "exec", "kitty"])
+    run(["gsettings", "set",
+         "org.cinnamon.desktop.default-applications.terminal",
+         "exec-arg", "--"])
+
+    # Debian-wide alternative — covers scripts/IDEs that hard-code
+    # /usr/bin/x-terminal-emulator. Priority 50 beats gnome-terminal's 40;
+    # --set pins the choice so apt installs can't silently steal it back.
+    run(["sudo", "update-alternatives", "--install",
+         "/usr/bin/x-terminal-emulator", "x-terminal-emulator",
+         str(kitty_bin), "50"])
+    run(["sudo", "update-alternatives", "--set",
+         "x-terminal-emulator", str(kitty_bin)])
+
+    green()
+    print("\n[+] kitty is now the default terminal.")
+    print("    Revertir: gsettings reset org.cinnamon.desktop.default-applications.terminal exec")
+    print("              sudo update-alternatives --auto x-terminal-emulator")
     white()
 
 
@@ -383,6 +407,9 @@ def aviso_final():
     yellow()
     print("\n[!] IMPORTANTE: cierra sesión y vuelve a entrar para que zsh sea tu shell por defecto.")
     print("    Para probarlo inmediatamente en esta terminal: `exec zsh`")
+    print("\n[!] Si aceptaste cambiar la terminal por defecto:")
+    print("    -> Cinnamon usará kitty para Ctrl+Alt+T, el panel y nemo 'Abrir terminal aquí'.")
+    print("    -> Cierra sesión para que todos los procesos hereden la nueva configuración.")
     print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
     print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
     print("        python3 tools/keybindings/apply_super_arrows.py")
