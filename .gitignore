@@ -1,0 +1,11 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Installer download + extraction artifacts (created by running main.py
+# from inside the repo). None of these should ever be committed.
+Hack.zip
+Hack-extracted/
+nvim-*.appimage
+squashfs-root/
+sudo.plugin.zsh
