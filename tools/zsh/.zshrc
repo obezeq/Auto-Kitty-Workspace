@@ -69,6 +69,7 @@ alias ls='lsd --group-dirs=first'
 alias cat='bat'
 alias clear-histfile='rm $HISTFILE'
 alias c='clear'
+alias copy='kitten clipboard'
 alias update='sudo apt update && sudo apt full-upgrade -y && sudo flatpak update'
 alias autoremove='sudo apt autoclean && sudo apt autoremove'
 
