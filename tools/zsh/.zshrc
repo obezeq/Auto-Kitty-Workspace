@@ -98,12 +98,6 @@ function man() {
     man "$@"
 }
 
-# key-bindings zsh
-  if [ -x "$(command -v fzf)"  ]
-    then
-    source /usr/share/doc/fzf/examples/key-bindings.zsh
-  fi
-
 
 #Teclado
 bindkey "^[[H" beginning-of-line

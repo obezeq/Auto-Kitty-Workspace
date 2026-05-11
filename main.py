@@ -120,8 +120,13 @@ def apt_prereqs():
         "sudo", "apt", "install", "-y",
         "curl", "wget", "unzip", "git", "zsh",
         "zsh-autosuggestions", "zsh-syntax-highlighting",
-        "fzf", "ncurses-bin",  # ncurses-bin provides `tic`
+        "ncurses-bin",  # ncurses-bin provides `tic`
     ])
+    # apt ships fzf 0.44.x on Noble; that's older than 0.48.0 which added
+    # `fzf --zsh`. The upstream install script in fzf() writes a `.fzf.zsh`
+    # that calls `fzf --zsh`, so /usr/bin/fzf must be gone or it shadows
+    # ~/.fzf/bin/fzf on PATH and the shell prints "unknown option: --zsh".
+    run(["sudo", "apt", "remove", "-y", "fzf"], check=False)
 
 
 def kitty_install():
@@ -299,7 +304,13 @@ def fzf():
     for target_str, sudo in ((str(HOME / ".fzf"), False), ("/root/.fzf", True)):
         target = Path(target_str)
         prefix = ["sudo"] if sudo else []
-        if target.exists():
+        # Use `test -e` (via sudo for root paths) instead of Path.exists():
+        # Python 3.12+ raises PermissionError on stat() of unreadable paths
+        # like /root/* when running as a non-root user.
+        exists = subprocess.run(
+            prefix + ["test", "-e", str(target)], check=False
+        ).returncode == 0
+        if exists:
             run(prefix + ["git", "-C", str(target), "pull", "--ff-only"], check=False)
         else:
             run(prefix + [
