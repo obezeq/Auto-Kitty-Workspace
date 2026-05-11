@@ -51,23 +51,12 @@ The installation script performs the following tasks:
 
 ## Important Notes
 
-* It is **recommended to restart your system** after installation to apply all changes.
-* The script automatically removes old Neovim configurations before installing NvChad.
-
-### Reinstalling Neovim (Clean Setup)
-
-If you have an older Neovim version, remove any previous configurations before running the script:
-
-```bash
-sudo rm -rf ~/.config/nvim
-sudo rm -rf ~/.local/share/nvim
-sudo rm -rf ~/.cache/nvim
-sudo rm -rf /root/.config/nvim
-sudo rm -rf /root/.local/share/nvim
-sudo rm -rf /root/.cache/nvim
-```
-
-If an error occurs during installation, rerun the script — it will automatically clean up any leftover files.
+* **Log out and log back in** after installation so the default-shell change to zsh takes effect. To preview it in the current terminal without a re-login, run `exec zsh`.
+* The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, and `~/.config/starship.toml` with a `.backup.<timestamp>` suffix.
+* The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
+* Hack Nerd Font is downloaded and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
+* Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
+* Re-running the script is safe — it backs up configs, skips already-installed fonts, and reuses existing clones.
 
 
 
