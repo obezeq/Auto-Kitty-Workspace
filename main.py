@@ -372,6 +372,9 @@ def aviso_final():
     yellow()
     print("\n[!] IMPORTANTE: cierra sesión y vuelve a entrar para que zsh sea tu shell por defecto.")
     print("    Para probarlo inmediatamente en esta terminal: `exec zsh`")
+    print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
+    print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
+    print("        python3 tools/keybindings/apply_super_arrows.py")
     white()
 
 
