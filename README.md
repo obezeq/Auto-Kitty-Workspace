@@ -57,6 +57,7 @@ The installation script performs the following tasks:
 * Hack Nerd Font is downloaded and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
 * Re-running the script is safe — it backs up configs, skips already-installed fonts, and reuses existing clones.
+* If `nvim` shows deprecation warnings on first launch (e.g. `vim.lsp.get_active_clients` was removed in Neovim 0.12), run `:Lazy sync` inside Neovim once — NvChad's starter tracks upstream Neovim releases but the first run after a major version bump can occasionally lag a release behind.
 
 
 
@@ -82,14 +83,18 @@ The installation script performs the following tasks:
 These shortcuts are configured in `kitty.conf` and help optimize navigation and workflow.
 
 
-### Window Navigation
+### Window Navigation & Splits
 
-| Keys                           | Action                     | Description              |
-| ------------------------------ | -------------------------- | ------------------------ |
-| <kbd>Ctrl</kbd> + <kbd>←</kbd> | `neighboring_window left`  | Move to the left panel.  |
-| <kbd>Ctrl</kbd> + <kbd>→</kbd> | `neighboring_window right` | Move to the right panel. |
-| <kbd>Ctrl</kbd> + <kbd>↑</kbd> | `neighboring_window up`    | Move to the panel above. |
-| <kbd>Ctrl</kbd> + <kbd>↓</kbd> | `neighboring_window down`  | Move to the panel below. |
+| Keys                                                                  | Action                                            | Description                                     |
+| --------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| <kbd>Super</kbd> + <kbd>H</kbd>/<kbd>J</kbd>/<kbd>K</kbd>/<kbd>L</kbd> | `neighboring_window left/down/up/right`           | Move focus between splits (Vim-style).          |
+| <kbd>Super</kbd> + <kbd>←</kbd>/<kbd>↓</kbd>/<kbd>↑</kbd>/<kbd>→</kbd> | `neighboring_window …`                            | Move focus between splits (arrow alias).        |
+| <kbd>F5</kbd>                                                         | `launch --location=hsplit`                        | Create a horizontal split in the current dir.   |
+| <kbd>F6</kbd>                                                         | `launch --location=vsplit`                        | Create a vertical split in the current dir.     |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd>/<kbd>↑</kbd>/<kbd>↓</kbd> | `resize_window narrower/wider/taller/shorter 3` | Resize the active split by 3 cells.        |
+| <kbd>F7</kbd>                                                         | `start_resizing_window`                           | Enter interactive resize mode (Esc to exit).    |
+
+> <kbd>Super</kbd> + <kbd>Shift</kbd> + arrows to **move** (swap) the active split with its neighbour is **opt-in** — run `python3 tools/keybindings/apply_super_arrows.py` once after the installer to free up Cinnamon's tiling shortcuts and append the matching kitty bindings. See the "Optional: Super+arrow split keybindings" section below.
 
 
 ### Copy & Paste Between Buffers
@@ -118,6 +123,25 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 | Keys                           | Description                          |
 | ------------------------------ | ------------------------------------ |
 | <kbd>Ctrl</kbd> + <kbd>R</kbd> | Search and navigate command history. |
+
+
+
+## Optional: Super+arrow split keybindings (Cinnamon only)
+
+The base installer ships a kitty config that already binds `Super+HJKL` for split navigation, which works on any desktop environment. If you also want **`Super+Arrows`** to move focus between splits and **`Super+Shift+Arrows`** to swap the active split with its neighbour, you need to free up those keys on the Cinnamon side first (by default Cinnamon binds them to window-tiling and move-to-monitor).
+
+After running `python3 main.py`, run:
+
+```bash
+python3 tools/keybindings/apply_super_arrows.py
+```
+
+That script:
+
+1. Clears the eight Cinnamon `push-tile-*` / `move-to-monitor-*` shortcuts via `gsettings` so kitty can receive the keys.
+2. Appends the `super+shift+arrow → move_window` mappings to your installed `~/.config/kitty/kitty.conf` (idempotently — re-running won't duplicate the block).
+
+It refuses to run on non-Cinnamon desktops (GNOME/KDE/XFCE), where you'd clear the equivalent shortcuts manually instead. Reopen kitty (or run `kitty @ load-config` inside a kitty window) afterward to pick up the new mappings.
 
 
 
