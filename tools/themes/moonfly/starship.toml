@@ -1,0 +1,354 @@
+# Mono-accent prompt: one accent color fading into neutral grays.
+# Switch the whole look by changing `palette` below to one of:
+#   moonfly_arrow_git (green ❯ + green branch) | moonfly_arrow_git_darker (same, darker blocks)
+#   moonfly (all gray)
+#   moonfly_arrow (green ❯) | moonfly_git (green branch name)
+#   moonfly_green (green first block) | moonfly_blue | vesper | carbonfox | github_dark | mono | tokyo_night | gruvbox | kanagawa | nord
+# Pick the one that matches your kitty / Neovim / GTK theme.
+"$schema" = 'https://starship.rs/config-schema.json'
+scan_timeout = 100
+command_timeout = 1000
+
+format = """
+[](s1)\
+$os\
+$username\
+[](bg:s2 fg:s1)\
+$directory\
+[](bg:s3 fg:s2)\
+$git_branch\
+$git_status\
+[](fg:s3 bg:s4)\
+$c\
+$rust\
+$golang\
+$nodejs\
+$php\
+$java\
+$kotlin\
+$haskell\
+$python\
+[](fg:s4 bg:s5)\
+$time\
+[ ](fg:s5)\
+$cmd_duration\
+$line_break\
+$character"""
+
+palette = 'moonfly_arrow_git'
+
+[os]
+disabled = false
+style = "bg:s1 fg:on_accent"
+
+[os.symbols]
+Windows = ""
+Ubuntu = "󰕈"
+SUSE = ""
+Raspbian = "󰐿"
+Mint = "󰣭"
+Macos = "󰀵"
+Manjaro = ""
+Linux = "󰌽"
+Gentoo = "󰣨"
+Fedora = "󰣛"
+Alpine = ""
+Amazon = ""
+Android = ""
+Arch = "󰣇"
+Artix = "󰣇"
+CentOS = ""
+Debian = "󰣚"
+Redhat = "󱄛"
+RedHatEnterprise = "󱄛"
+
+[username]
+show_always = true
+style_user = "bg:s1 fg:on_accent"
+style_root = "bg:s1 fg:on_accent"
+format = '[ $user]($style)'
+
+[directory]
+style = "bg:s2 fg:text"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = "󰝚 "
+"Pictures" = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = ""
+style = "bg:s3"
+format = '[[ $symbol $branch ](fg:branch bg:s3)]($style)'
+
+[git_status]
+style = "bg:s3"
+format = '[[($all_status$ahead_behind )](fg:text bg:s3)]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[c]
+symbol = " "
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[php]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[java]
+symbol = " "
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[kotlin]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[haskell]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version) ](fg:text bg:s4)]($style)'
+
+[python]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:text bg:s4)]($style)'
+
+[docker_context]
+symbol = ""
+style = "bg:s4"
+format = '[[ $symbol( $context) ](fg:text bg:s4)]($style)'
+
+[conda]
+symbol = "  "
+style = "fg:text bg:s4"
+format = '[$symbol$environment ]($style)'
+ignore_base = false
+
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:s5"
+format = '[[  $time ](fg:text bg:s5)]($style)'
+
+[line_break]
+disabled = true
+
+[character]
+disabled = false
+success_symbol = '[❯](bold fg:ok)'
+error_symbol = '[❯](bold fg:err)'
+vimcmd_symbol = '[❮](bold fg:ok)'
+vimcmd_replace_one_symbol = '[❮](bold fg:s1)'
+vimcmd_replace_symbol = '[❮](bold fg:s1)'
+vimcmd_visual_symbol = '[❮](bold fg:s1)'
+
+[cmd_duration]
+show_milliseconds = false
+format = "in $duration "
+style = "bg:s5"
+disabled = false
+show_notifications = true
+min_time_to_notify = 45000
+
+# s1 = accent (OS + user), s2..s5 = progressively darker neutrals
+[palettes.tokyo_night]
+s1 = "#7aa2f7"
+s2 = "#3d59a1"
+s3 = "#414868"
+s4 = "#292e42"
+s5 = "#1f2335"
+on_accent = "#1a1b26"
+text = "#c0caf5"
+branch = "#c0caf5"
+ok = "#7aa2f7"
+err = "#f7768e"
+
+[palettes.gruvbox]
+s1 = "#d79921"
+s2 = "#665c54"
+s3 = "#504945"
+s4 = "#3c3836"
+s5 = "#32302f"
+on_accent = "#282828"
+text = "#ebdbb2"
+branch = "#ebdbb2"
+ok = "#d79921"
+err = "#fb4934"
+
+[palettes.kanagawa]
+s1 = "#7e9cd8"
+s2 = "#2d4f67"
+s3 = "#223249"
+s4 = "#363646"
+s5 = "#2a2a37"
+on_accent = "#1f1f28"
+text = "#dcd7ba"
+branch = "#dcd7ba"
+ok = "#7e9cd8"
+err = "#e82424"
+
+[palettes.nord]
+s1 = "#88c0d0"
+s2 = "#5e81ac"
+s3 = "#4c566a"
+s4 = "#434c5e"
+s5 = "#3b4252"
+on_accent = "#2e3440"
+text = "#eceff4"
+branch = "#eceff4"
+ok = "#88c0d0"
+err = "#bf616a"
+
+[palettes.mono]
+s1 = "#d4d4d4"
+s2 = "#6b6b6b"
+s3 = "#4a4a4a"
+s4 = "#363636"
+s5 = "#262626"
+on_accent = "#121212"
+text = "#e4e4e4"
+branch = "#e4e4e4"
+ok = "#d4d4d4"
+err = "#d75f5f"
+
+[palettes.vesper]
+s1 = "#ffc799"
+s2 = "#4a4a4a"
+s3 = "#343434"
+s4 = "#262626"
+s5 = "#181818"
+on_accent = "#101010"
+text = "#ffffff"
+branch = "#ffffff"
+ok = "#ffc799"
+err = "#ff8080"
+
+[palettes.carbonfox]
+s1 = "#78a9ff"
+s2 = "#3e3e3e"
+s3 = "#323232"
+s4 = "#2a2a2a"
+s5 = "#202020"
+on_accent = "#161616"
+text = "#f2f4f8"
+branch = "#f2f4f8"
+ok = "#78a9ff"
+err = "#ee5396"
+
+[palettes.github_dark]
+s1 = "#58a6ff"
+s2 = "#30363d"
+s3 = "#262c36"
+s4 = "#21262d"
+s5 = "#161b22"
+on_accent = "#0d1117"
+text = "#e6edf3"
+branch = "#e6edf3"
+ok = "#58a6ff"
+err = "#ff7b72"
+
+[palettes.moonfly]
+s1 = "#b2b2b2"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#e4e4e4"
+ok = "#c6c6c6"
+err = "#ff5d5d"
+
+[palettes.moonfly_blue]
+s1 = "#80a0ff"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#e4e4e4"
+ok = "#80a0ff"
+err = "#ff5d5d"
+
+[palettes.moonfly_green]
+s1 = "#8cc85f"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#e4e4e4"
+ok = "#c6c6c6"
+err = "#ff5d5d"
+
+[palettes.moonfly_arrow]
+s1 = "#b2b2b2"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#e4e4e4"
+ok = "#8cc85f"
+err = "#ff5d5d"
+
+[palettes.moonfly_git]
+s1 = "#b2b2b2"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#8cc85f"
+ok = "#c6c6c6"
+err = "#ff5d5d"
+
+[palettes.moonfly_arrow_git]
+s1 = "#b2b2b2"
+s2 = "#3a3a3a"
+s3 = "#2e2e2e"
+s4 = "#242424"
+s5 = "#1a1a1a"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#8cc85f"
+ok = "#8cc85f"
+err = "#ff5d5d"
+
+[palettes.moonfly_arrow_git_darker]
+s1 = "#b2b2b2"
+s2 = "#303030"
+s3 = "#282828"
+s4 = "#202020"
+s5 = "#181818"
+on_accent = "#080808"
+text = "#e4e4e4"
+branch = "#8cc85f"
+ok = "#8cc85f"
+err = "#ff5d5d"

@@ -1,5 +1,7 @@
+import argparse
 import os
 import platform
+import re
 import shlex
 import shutil
 import subprocess
@@ -11,6 +13,29 @@ from sys import stdout
 
 REPO = Path(__file__).resolve().parent
 HOME = Path.home()
+
+THEMES_DIR = REPO / "tools" / "themes"
+DESKTOP_DIR = REPO / "tools" / "desktop"
+STATE_DIR = HOME / ".config" / "auto-kitty"
+
+# Each theme lives in tools/themes/<key>/ (color.ini + starship.toml).
+THEMES = {
+    "classic": {
+        "name": "Classic",
+        "desc": "Catppuccin pastel + prompt arcoíris (el Auto-Kitty original)",
+        "nvchad": "onedark",   # NvChad's default
+        "bat": None,           # bat's default theme
+    },
+    "moonfly": {
+        "name": "Moonfly",
+        "desc": "Negro con acentos verdes: prompt gris, bordes y pestañas neutras",
+        "nvchad": "yoru",      # closest NvChad theme to Moonfly
+        "bat": "ansi",         # bat uses the terminal's (Moonfly) colors
+    },
+}
+
+# Filled in by the menu / CLI flags before the install phases run.
+CHOICE = {"theme": "classic", "desktop": False}
 
 
 """LOGOTIPO DE LA APLICACIÓN"""
@@ -102,6 +127,64 @@ def backup_path(p: Path):
     return backup
 
 
+def theme_file(name, theme=None):
+    """Path of a file inside tools/themes/<theme>/."""
+    return THEMES_DIR / (theme or CHOICE["theme"]) / name
+
+
+def is_cinnamon():
+    env = " ".join(os.environ.get(k, "") for k in
+                   ("XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION"))
+    return "cinnamon" in env.lower()
+
+
+def set_nvchad_theme(nvchad_theme, regenerate=False):
+    """Point NvChad's chadrc at the theme (user + root).
+
+    On a fresh install NvChad builds its theme cache on first launch, so editing
+    chadrc is enough. On an existing install the cache must be rebuilt
+    (regenerate=True); never delete it, the starter config dofile()s it.
+    """
+    pattern = re.compile(r'theme\s*=\s*"[^"]*"')
+    chadrc = HOME / ".config" / "nvim" / "lua" / "chadrc.lua"
+    if chadrc.exists():
+        chadrc.write_text(pattern.sub(f'theme = "{nvchad_theme}"', chadrc.read_text(), count=1))
+    root_chadrc = "/root/.config/nvim/lua/chadrc.lua"
+    run(["sudo", "sh", "-c",
+         f'[ -f {root_chadrc} ] && sed -i \'0,/theme = "[^"]*"/s//theme = "{nvchad_theme}"/\' {root_chadrc} || true'],
+        check=False)
+    if regenerate and shutil.which("nvim") and chadrc.exists():
+        run(["nvim", "--headless", "+lua require('base46').load_all_highlights()", "+qa"], check=False)
+
+
+BAT_MARKER = "# Managed by Auto-Kitty"
+
+
+def set_bat_theme(bat_theme):
+    """Moonfly: make bat (aliased as cat) use the terminal colors. Classic: bat's default."""
+    content = f'{BAT_MARKER} (theme setting)\n--theme="{bat_theme}"\n' if bat_theme else None
+    user_cfg = HOME / ".config" / "bat" / "config"
+    if content:
+        if user_cfg.exists() and BAT_MARKER not in user_cfg.read_text():
+            backup_path(user_cfg)
+        user_cfg.parent.mkdir(parents=True, exist_ok=True)
+        user_cfg.write_text(content)
+        run(["sudo", "mkdir", "-p", "/root/.config/bat"])
+        subprocess.run(["sudo", "tee", "/root/.config/bat/config"], input=content,
+                       text=True, stdout=subprocess.DEVNULL, check=True)
+    else:
+        if user_cfg.exists() and BAT_MARKER in user_cfg.read_text():
+            user_cfg.unlink()
+        run(["sudo", "sh", "-c",
+             f'grep -qs "{BAT_MARKER}" /root/.config/bat/config && rm -f /root/.config/bat/config || true'],
+            check=False)
+
+
+def save_state(theme):
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    (STATE_DIR / "theme").write_text(theme + "\n")
+
+
 """FUNCIONES PRINCIPALES"""
 def preflight():
     mostrar_progeso("\n[+] Preflight checks...\n")
@@ -162,7 +245,7 @@ def kitty_install():
     backup_path(cfg_dir)
     cfg_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(REPO / "tools" / "kitty" / "kitty.conf", cfg_dir / "kitty.conf")
-    shutil.copy(REPO / "tools" / "kitty" / "color.ini", cfg_dir / "color.ini")
+    shutil.copy(theme_file("color.ini"), cfg_dir / "color.ini")
 
 
 def kitty_terminfo():
@@ -287,12 +370,12 @@ def starship():
     user_cfg = HOME / ".config" / "starship.toml"
     backup_path(user_cfg)
     (HOME / ".config").mkdir(parents=True, exist_ok=True)
-    shutil.copy(REPO / "tools" / "starship" / "starship.toml", user_cfg)
+    shutil.copy(theme_file("starship.toml"), user_cfg)
 
     run(["sudo", "mkdir", "-p", "/root/.config"])
     run([
         "sudo", "cp",
-        str(REPO / "tools" / "starship" / "starship.toml"),
+        str(theme_file("starship.toml")),
         "/root/.config/starship.toml",
     ])
 
@@ -369,6 +452,18 @@ def nvim():
         "sudo", "bash", "-c",
         "git clone https://github.com/NvChad/starter /root/.config/nvim",
     ])
+    set_nvchad_theme(THEMES[CHOICE["theme"]]["nvchad"])
+
+
+def theme_extras():
+    mostrar_progeso(f"\n[+] Applying the {THEMES[CHOICE['theme']]['name']} theme extras...\n")
+    set_bat_theme(THEMES[CHOICE["theme"]]["bat"])
+    save_state(CHOICE["theme"])
+
+
+def desktop():
+    mostrar_progeso("\n[+] Applying the Moonfly desktop theme (Cinnamon)...\n")
+    run(["bash", str(DESKTOP_DIR / "apply-desktop.sh")])
 
 
 def cambiar_terminal():
@@ -413,6 +508,12 @@ def aviso_final():
     print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
     print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
     print("        python3 tools/keybindings/apply_super_arrows.py")
+    print(f"\n[!] Tema instalado: {THEMES[CHOICE['theme']]['name']}. Para cambiarlo más tarde sin reinstalar:")
+    print("        python3 main.py --switch-theme classic     (o moonfly)")
+    if CHOICE["desktop"]:
+        print("\n[!] Escritorio Moonfly aplicado. Tamaño/estilo de los contadores de la barra:")
+        print("        bash tools/desktop/set-badges.sh 11 black     (tamaño 8-14, black o colored)")
+        print("    Para deshacerlo, usa el comando 'To undo' que se mostró arriba.")
     white()
 
 
@@ -426,12 +527,14 @@ PHASES = [
     ("starship",       starship),
     ("fzf",            fzf),
     ("nvim",           nvim),
+    ("theme-extras",   theme_extras),
 ]
 
 
 def instalar():
     completed = []
-    for name, fn in PHASES:
+    phases = PHASES + ([("desktop", desktop)] if CHOICE["desktop"] else [])
+    for name, fn in phases:
         try:
             fn()
             completed.append(name)
@@ -450,10 +553,161 @@ def instalar():
             sys.exit(1)
 
 
+"""MENÚ Y CAMBIO DE TEMA"""
+def preguntar_si_no(texto):
+    while True:
+        r = input(texto).strip().lower()
+        if r in ("s", "si", "sí", "y", "yes"):
+            return True
+        if r in ("n", "no"):
+            return False
+        print("\nSolo puedes responder 's' o 'n'\n")
+
+
+def elegir_tema():
+    keys = list(THEMES)
+    blue(); print("\nElige el estilo del workspace:\n")
+    for i, key in enumerate(keys, 1):
+        white(); print(f"  [{i}] {THEMES[key]['name']:<8} {THEMES[key]['desc']}")
+    blue()
+    while True:
+        r = input(f"\nOpción [1-{len(keys)}] (Enter = 1): ").strip().lower()
+        if r == "":
+            return keys[0]
+        if r.isdigit() and 1 <= int(r) <= len(keys):
+            return keys[int(r) - 1]
+        if r in THEMES:
+            return r
+        print(f"Responde un número del 1 al {len(keys)}.")
+
+
+def decidir_escritorio(flag):
+    """Moonfly only: also theme the Cinnamon desktop? flag = --desktop/--no-desktop or None."""
+    if flag is False:
+        return False
+    if not is_cinnamon():
+        yellow()
+        print("\n[i] El tema de escritorio Moonfly es solo para Cinnamon; no se aplicará aquí.")
+        white()
+        return False
+    if flag is True:
+        return True
+    blue()
+    return preguntar_si_no("\n¿Aplicar también el escritorio Moonfly (ventanas negras con verde, "
+                           "panel negro, iconos Papirus)? (s/n): ")
+
+
+LEGACY_KITTY_LINES = [re.compile(p) for p in (
+    r"^#*\s*url_color\s+#61afef\s*$",               # classic colors that used to live in kitty.conf
+    r"^#*\s*inactive_tab_background\s+#e06c75\s*$",
+    r"^#*\s*inactive_tab_foreground\s+#000000\s*$",
+    r"^#*\s*active_tab_background\s+#98c379\s*$",
+    r"^#*\s*tab_bar_margin_color\s+\S+\s*$",       # now set by each theme's color.ini
+    r"^inactive_text_alpha 0\.75$",                  # older Moonfly patch; now in moonfly/color.ini
+    r"^# Dim the text in splits you're not typing in, so the active one is obvious$",
+    r"^# even with 5-8 terminals open\. 1\.0 = no dimming\.$",
+)]
+
+
+def limpiar_kitty_conf(path):
+    """Bring an older kitty.conf up to date without touching the user's own keybindings."""
+    out, in_kitten_block = [], False
+    for line in path.read_text().splitlines():
+        if line.startswith("# BEGIN_KITTY_THEME"):   # left by `kitten themes`
+            in_kitten_block = True
+            continue
+        if in_kitten_block:
+            in_kitten_block = not line.startswith("# END_KITTY_THEME")
+            continue
+        if any(p.match(line) for p in LEGACY_KITTY_LINES):
+            continue
+        if re.match(r"^#\s*include color\.ini\s*$", line):
+            line = "include color.ini"
+        out.append(line)
+    if "include color.ini" not in out:
+        out.insert(0, "include color.ini")
+    if not any(l.startswith("scrollback_lines") for l in out):
+        out.append("scrollback_lines 10000")
+    text = re.sub(r"\n{4,}", "\n\n\n", "\n".join(out) + "\n")
+    path.write_text(text)
+
+
+def cambiar_tema(theme, desktop_flag):
+    """--switch-theme: re-theme an existing install (kitty, prompt, bat, NvChad) without reinstalling."""
+    CHOICE["theme"] = theme
+    kitty_dir = HOME / ".config" / "kitty"
+    if not (kitty_dir / "kitty.conf").exists():
+        sys.exit("ERROR: no encuentro ~/.config/kitty/kitty.conf. Ejecuta primero: python3 main.py")
+    mostrar_progeso(f"\n[+] Cambiando al tema {THEMES[theme]['name']}...\n")
+    run(["sudo", "-v"])
+
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    backup, n = STATE_DIR / f"backup-{stamp}", 1
+    while backup.exists():
+        n += 1
+        backup = STATE_DIR / f"backup-{stamp}-{n}"
+    backup.mkdir(parents=True)
+    for f in (kitty_dir / "kitty.conf", kitty_dir / "color.ini", HOME / ".config" / "starship.toml"):
+        if f.exists():
+            shutil.copy(f, backup / f.name)
+    yellow(); print(f"  Backup de tu configuración actual: {backup}"); white()
+
+    limpiar_kitty_conf(kitty_dir / "kitty.conf")
+    shutil.copy(theme_file("color.ini"), kitty_dir / "color.ini")
+    shutil.copy(theme_file("starship.toml"), HOME / ".config" / "starship.toml")
+    run(["sudo", "mkdir", "-p", "/root/.config"])
+    run(["sudo", "cp", str(theme_file("starship.toml")), "/root/.config/starship.toml"])
+    set_bat_theme(THEMES[theme]["bat"])
+    set_nvchad_theme(THEMES[theme]["nvchad"], regenerate=True)
+    save_state(theme)
+
+    if theme == "moonfly":
+        CHOICE["desktop"] = decidir_escritorio(desktop_flag)
+        if CHOICE["desktop"]:
+            desktop()
+    else:
+        backups = sorted(HOME.glob("theme-backup-desktop-*/restore.sh"))
+        if backups and desktop_flag is not False and is_cinnamon():
+            blue()
+            if desktop_flag or preguntar_si_no("\n¿Restaurar también el escritorio original de Mint? (s/n): "):
+                run(["bash", str(backups[0])])
+            white()
+
+    green()
+    print(f"\n[+] Tema {THEMES[theme]['name']} aplicado.")
+    print("    -> En kitty pulsa Ctrl+Shift+F5 (o abre una ventana nueva) para ver los colores.")
+    print("    -> El prompt se actualiza al pulsar Enter.")
+    print(f"    -> Para deshacer: copia los archivos de {backup} a su sitio.")
+    white()
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Auto-Kitty-Workspace installer")
+    p.add_argument("--theme", choices=list(THEMES),
+                   help="install this theme without showing the menu")
+    p.add_argument("--desktop", action=argparse.BooleanOptionalAction, default=None,
+                   help="also apply (or skip) the matching Cinnamon desktop theme (moonfly only)")
+    p.add_argument("--switch-theme", choices=list(THEMES), metavar="THEME",
+                   help="only change the theme of an existing install (classic or moonfly)")
+    return p.parse_args()
+
+
 """PROGRAMA PRINCIPAL"""
 if __name__ == '__main__':
+    args = parse_args()
     purple()
     print(BANNER)
+
+    if args.switch_theme:
+        cambiar_tema(args.switch_theme, args.desktop)
+        sys.exit(0)
+
+    CHOICE["theme"] = args.theme or elegir_tema()
+    if CHOICE["theme"] == "moonfly":
+        CHOICE["desktop"] = decidir_escritorio(args.desktop)
+    elif args.desktop:
+        yellow(); print("\n[i] --desktop solo aplica al tema moonfly; se ignora."); white()
+
     instalar()
 
     blue()
