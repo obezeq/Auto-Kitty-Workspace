@@ -61,7 +61,7 @@ def run(cmd):
 
 def require_cinnamon():
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
-    if "Cinnamon" not in desktop:
+    if "cinnamon" not in desktop.lower():
         sys.exit(
             "ERROR: this script only supports Cinnamon "
             f"(XDG_CURRENT_DESKTOP={desktop!r}).\n"
@@ -74,8 +74,14 @@ def require_cinnamon():
 
 def clear_cinnamon_keys():
     print("\n[+] Clearing Cinnamon Super+arrow tiling shortcuts...")
+    schema = "org.cinnamon.desktop.keybindings.wm"
+    available = subprocess.run(["gsettings", "list-keys", schema],
+                               capture_output=True, text=True, check=True).stdout.split()
     for key in CINNAMON_KEYS_TO_CLEAR:
-        run(["gsettings", "set", "org.cinnamon.desktop.keybindings.wm", key, "[]"])
+        if key not in available:
+            print(f"  [skip] {key} does not exist in this Cinnamon version")
+            continue
+        run(["gsettings", "set", schema, key, "[]"])
         print(f"  [ok] cleared {key}")
 
 

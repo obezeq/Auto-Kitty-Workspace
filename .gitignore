@@ -9,3 +9,7 @@ Hack-extracted/
 nvim-*.appimage
 squashfs-root/
 sudo.plugin.zsh
+*.part
+
+# Local archives of the project (never commit)
+*.tar.gz

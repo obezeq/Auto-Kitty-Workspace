@@ -36,7 +36,8 @@ else
                "org.cinnamon.desktop.wm.preferences theme" \
                "org.cinnamon.theme name" \
                "org.cinnamon.desktop.interface icon-theme"; do
-      echo "gsettings set $key $(gsettings get $key)"
+      # %q keeps values with spaces/quotes intact when restore.sh runs
+      printf 'gsettings set %s %q\n' "$key" "$(gsettings get $key)"
     done
     echo "rm -rf \"\$HOME/.config/gtk-4.0\""
     echo "[ -d \"$BACKUP/gtk-4.0\" ] && cp -r \"$BACKUP/gtk-4.0\" \"\$HOME/.config/gtk-4.0\""
@@ -46,7 +47,13 @@ else
 fi
 
 echo "[2/5] Installing build tools (may ask for your password)"
-sudo apt-get install -y git curl sassc gtk2-engines-murrine gnome-themes-extra papirus-icon-theme >/dev/null
+APT="sudo apt-get -o DPkg::Lock::Timeout=600"
+$APT update >/dev/null
+$APT install -y git curl sassc papirus-icon-theme >/dev/null
+# Only needed for old GTK2 apps; newer releases may drop them, so don't fail on them
+for pkg in gtk2-engines-murrine gnome-themes-extra; do
+  $APT install -y "$pkg" >/dev/null 2>&1 || echo "   (note: $pkg not available here, skipping)"
+done
 
 echo "[3/5] Building the theme with Moonfly green ($GREEN)"
 git clone -q --depth 1 https://github.com/vinceliuice/Colloid-gtk-theme.git "$WORK/theme"
@@ -58,6 +65,7 @@ grep -q "^\$green-light: $GREEN;" "$WORK/theme/src/sass/_color-palette-default.s
 (cd "$WORK/theme" && ./install.sh -t green -c dark --tweaks black normal -l >/dev/null)
 # Solid panel instead of 75% see-through black
 CSS="$HOME/.themes/$THEME/cinnamon/cinnamon.css"
+[ -f "$CSS" ] || { echo "The theme build did not produce $CSS (upstream changed?). Nothing was applied."; exit 1; }
 sed -i '/^\.panel-top, \.panel-bottom, \.panel-left, \.panel-right {/,/}/ s/background-color: rgba(0, 0, 0, 0\.[0-9]*);/background-color: '"$PANEL_BG"';/' "$CSS"
 grep -q "background-color: $PANEL_BG;" "$CSS" || echo "   (note: couldn't make the panel solid; it stays slightly see-through)"
 # Taskbar badges (window count + notifications). Uses your saved choice from set-badges.sh if any.

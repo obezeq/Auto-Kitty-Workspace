@@ -1,11 +1,13 @@
 import argparse
 import os
 import platform
+import pwd
 import re
 import shlex
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from sys import stdout
@@ -111,6 +113,45 @@ def run(cmd, *, shell=False, check=True, cwd=None, env=None):
     return subprocess.run(cmd, shell=shell, check=check, cwd=cwd, env=env)
 
 
+# Fresh Mint installs often have mintupdate / unattended-upgrades holding the
+# dpkg lock for a few minutes; wait for it instead of failing with
+# "Could not get lock /var/lib/dpkg/lock-frontend".
+APT = ["sudo", "apt-get", "-o", "DPkg::Lock::Timeout=600"]
+
+
+def run_pipe(script):
+    """Run a `curl ... | sh` style pipeline; pipefail so a failed download aborts."""
+    return run(["bash", "-o", "pipefail", "-c", script])
+
+
+def download(url, dest: Path):
+    """Download to a .part file first so an interrupted run never leaves a
+    truncated file that later runs would treat as already downloaded."""
+    part = dest.with_name(dest.name + ".part")
+    run(["curl", "-fL", "--retry", "3", "-o", str(part), url])
+    part.replace(dest)
+
+
+def sudo_keepalive():
+    """Refresh the sudo timestamp in the background so long phases (nvim,
+    fonts...) don't stop halfway to ask for the password again."""
+    def loop():
+        while True:
+            time.sleep(60)
+            subprocess.run(["sudo", "-n", "-v"], check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def gsettings_has(schema, key):
+    """True if this desktop has that gsettings schema/key (Cinnamon-only keys)."""
+    if shutil.which("gsettings") is None:
+        return False
+    res = subprocess.run(["gsettings", "list-keys", schema],
+                         capture_output=True, text=True, check=False)
+    return res.returncode == 0 and key in res.stdout.split()
+
+
 def mostrar_progeso(texto):
     orange()
     print(texto)
@@ -192,30 +233,39 @@ def preflight():
         sys.exit("ERROR: this installer requires apt (Debian/Ubuntu/Mint).")
     if platform.machine() not in ("x86_64", "amd64"):
         sys.exit(f"ERROR: bundled .deb packages are amd64-only; detected {platform.machine()}.")
+    if shutil.which("sudo") is None:
+        sys.exit("ERROR: sudo is required.")
     # Warm up sudo so subsequent steps don't each prompt for a password.
     run(["sudo", "-v"])
+    sudo_keepalive()
 
 
 def apt_prereqs():
     mostrar_progeso("\n[+] Installing apt prerequisites...\n")
-    run(["sudo", "apt", "update"])
-    run([
-        "sudo", "apt", "install", "-y",
+    run(APT + ["update"])
+    run(APT + [
+        "install", "-y",
         "curl", "wget", "unzip", "git", "zsh",
         "zsh-autosuggestions", "zsh-syntax-highlighting",
-        "ncurses-bin",  # ncurses-bin provides `tic`
+        "ncurses-bin",       # provides `tic`
+        "fontconfig",        # fc-cache / fc-list for the Nerd Font check
+        "build-essential",   # NvChad compiles treesitter parsers on first launch
+        "ripgrep",           # NvChad's Telescope live grep
+        "xclip",             # Neovim clipboard on X11 (Cinnamon)
+        "wl-clipboard",      # same on Wayland (Cinnamon's Wayland session, Mint 23+)
     ])
     # apt ships fzf 0.44.x on Noble; that's older than 0.48.0 which added
     # `fzf --zsh`. The upstream install script in fzf() writes a `.fzf.zsh`
     # that calls `fzf --zsh`, so /usr/bin/fzf must be gone or it shadows
     # ~/.fzf/bin/fzf on PATH and the shell prints "unknown option: --zsh".
-    run(["sudo", "apt", "remove", "-y", "fzf"], check=False)
+    run(APT + ["remove", "-y", "fzf"], check=False)
 
 
 def kitty_install():
     mostrar_progeso("\n[+] Installing Kitty...\n")
-    # Official kitty installer (apt version is too old)
-    run("curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin", shell=True)
+    # Official kitty installer (apt version is too old). launch=n: by default
+    # it opens a kitty window at the end, before the config is in place.
+    run_pipe("curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n")
 
     (HOME / ".local" / "bin").mkdir(parents=True, exist_ok=True)
     for binname in ("kitty", "kitten"):
@@ -229,8 +279,9 @@ def kitty_install():
     apps_dir = HOME / ".local" / "share" / "applications"
     apps_dir.mkdir(parents=True, exist_ok=True)
     src_apps = HOME / ".local" / "kitty.app" / "share" / "applications"
-    for desktop in ("kitty.desktop", "kitty-open.desktop"):
-        shutil.copy(src_apps / desktop, apps_dir / desktop)
+    shutil.copy(src_apps / "kitty.desktop", apps_dir / "kitty.desktop")
+    if (src_apps / "kitty-open.desktop").exists():
+        shutil.copy(src_apps / "kitty-open.desktop", apps_dir / "kitty-open.desktop")
 
     icon = HOME / ".local" / "kitty.app" / "share" / "icons" / "hicolor" / "256x256" / "apps" / "kitty.png"
     exe = HOME / ".local" / "kitty.app" / "bin" / "kitty"
@@ -297,34 +348,110 @@ def kitty_terminfo():
     white()
 
 
+# Messages shown again at the very end, so they don't get lost in the log.
+AVISOS = []
+
+ZPROFILE_LINE = "[[ -f ~/.profile ]] && emulate sh -c '. ~/.profile'"
+
+
+def conservar_extras_zshrc(old_rc: Path):
+    """Keep what other installers (nvm, uv, bun, conda...) appended to an
+    Auto-Kitty ~/.zshrc: move it to ~/.zshrc.local, which the new .zshrc
+    sources and reinstalls never overwrite. Call before backing up old_rc."""
+    if not old_rc.exists():
+        return
+    lines = old_rc.read_text(errors="replace").splitlines()
+    ends = [i for i, l in enumerate(lines)
+            if "starship init zsh" in l or l.startswith("zle-line-init() {")]
+    if not ends or not any(l.startswith("# Manual aliases") for l in lines):
+        AVISOS.append("Tu ~/.zshrc anterior no era de Auto-Kitty: está guardado como ~/.zshrc.backup.*\n"
+                      "    Si tenías PATH, exports o alias propios ahí, cópialos a ~/.zshrc.local")
+        return
+    extras = "\n".join(lines[ends[-1] + 1:]).strip()
+    if not extras:
+        return
+    local = HOME / ".zshrc.local"
+    current = local.read_text() if local.exists() else ""
+    if extras in current:
+        return
+    sep = "\n" if current and not current.endswith("\n") else ""
+    local.write_text(f"{current}{sep}\n# Moved here by Auto-Kitty from your previous ~/.zshrc\n{extras}\n")
+    green(); print("  Lines added to ~/.zshrc by other installers kept in ~/.zshrc.local"); white()
+
+
+def zprofile():
+    """Login shells (TTY, SSH) read ~/.zprofile, never ~/.profile, so the PATH
+    set there (~/bin, ~/.local/bin, cargo, Go...) would be missing. Source it,
+    in sh emulation, so login zsh gets the same PATH as login bash."""
+    zp = HOME / ".zprofile"
+    text = zp.read_text() if zp.exists() else ""
+    if ZPROFILE_LINE in text:
+        return
+    sep = "\n" if text and not text.endswith("\n") else ""
+    zp.write_text(f"{text}{sep}# Added by Auto-Kitty: same login PATH as bash (~/.profile)\n{ZPROFILE_LINE}\n")
+
+
+def avisar_bashrc():
+    """zsh doesn't read ~/.bashrc. Point out PATH/toolchain lines there that
+    the new .zshrc doesn't already cover (nvm, ~/.local/bin, cargo and Go are)."""
+    rc = HOME / ".bashrc"
+    if not rc.exists():
+        return
+    pat = re.compile(r"PATH=|\b(conda|pyenv|rbenv|sdkman|bun|deno|pnpm|volta|asdf|mise|fnm|direnv)\b")
+    local = HOME / ".zshrc.local"
+    done = local.read_text() if local.exists() else ""
+    hits = [l.strip() for l in rc.read_text(errors="replace").splitlines()
+            if pat.search(l) and not l.lstrip().startswith("#")
+            and "nvm" not in l.lower() and l.strip() not in done]
+    if hits:
+        AVISOS.append("Tu ~/.bashrc configura cosas que zsh no lee. Si las usas, cópialas a ~/.zshrc.local\n"
+                      "    (o vuelve a ejecutar su instalador, que ya detectará zsh):\n"
+                      + "\n".join(f"        {h}" for h in hits[:15]))
+
+
 def zsh():
     mostrar_progeso("\n[+] Configuring ZSH...\n")
     # zsh + plugins were installed in apt_prereqs(). Just change the default shells.
-    user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
-    if user:
-        run(["sudo", "usermod", "--shell", "/usr/bin/zsh", user])
-    run(["sudo", "usermod", "--shell", "/usr/bin/zsh", "root"])
+    zsh_bin = shutil.which("zsh") or "/usr/bin/zsh"
+    user = pwd.getpwuid(os.getuid()).pw_name
+    run(["sudo", "usermod", "--shell", zsh_bin, user])
+    run(["sudo", "usermod", "--shell", zsh_bin, "root"])
 
     # Backup + install .zshrc for user and root
     user_rc = HOME / ".zshrc"
+    conservar_extras_zshrc(user_rc)
     backup_path(user_rc)
     shutil.copy(REPO / "tools" / "zsh" / ".zshrc", user_rc)
     run(["sudo", "cp", str(REPO / "tools" / "zsh" / ".zshrc"), "/root/.zshrc"])
+    zprofile()
+    avisar_bashrc()
 
     # Bundled .deb plugins (bat, lsd) — apt install resolves deps, dpkg -i doesn't.
-    debs = sorted(str(p) for p in (REPO / "tools" / "zsh" / "plugins").glob("*.deb"))
+    # Skip a .deb when the same package is already installed at an equal or
+    # newer version (newer Mint releases may ship one): apt refuses to
+    # downgrade with -y and the whole phase would fail.
+    debs = []
+    for deb in sorted((REPO / "tools" / "zsh" / "plugins").glob("*.deb")):
+        pkg, ver = subprocess.run(["dpkg-deb", "-f", str(deb), "Package", "Version"],
+                                  capture_output=True, text=True, check=True).stdout.split("\n")[:2]
+        pkg, ver = pkg.split(":", 1)[1].strip(), ver.split(":", 1)[1].strip()
+        q = subprocess.run(["dpkg-query", "-W", "-f=${Status}|${Version}", pkg],
+                           capture_output=True, text=True, check=False).stdout
+        installed = q.split("|")[1] if q.startswith("install ok installed|") else ""
+        if installed and subprocess.run(["dpkg", "--compare-versions", installed, "ge", ver],
+                                        check=False).returncode == 0:
+            print(f"  {pkg} {installed} already installed, skipping bundled {ver}.")
+            continue
+        debs.append(str(deb))
     if debs:
-        run(["sudo", "apt", "install", "-y"] + debs)
+        run(APT + ["install", "-y"] + debs)
 
     # ohmyzsh sudo plugin
     sudo_plugin_dir = Path("/usr/share/zsh-sudo")
     sudo_plugin_path = sudo_plugin_dir / "sudo.plugin.zsh"
     if not sudo_plugin_path.exists():
         tmp = REPO / "sudo.plugin.zsh"
-        run([
-            "wget", "-O", str(tmp),
-            "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh",
-        ])
+        download("https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh", tmp)
         run(["sudo", "mkdir", "-p", str(sudo_plugin_dir)])
         run(["sudo", "mv", str(tmp), str(sudo_plugin_path)])
 
@@ -340,10 +467,7 @@ def hnf():
 
     zip_path = REPO / "Hack.zip"
     if not zip_path.exists():
-        run([
-            "wget", "-O", str(zip_path),
-            "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip",
-        ])
+        download("https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip", zip_path)
 
     extract_dir = REPO / "Hack-extracted"
     if extract_dir.exists():
@@ -365,7 +489,7 @@ def hnf():
 def starship():
     mostrar_progeso("\n[+] Installing Starship...\n")
     # Official installer; --yes makes it non-interactive.
-    run("curl -sS https://starship.rs/install.sh | sh -s -- --yes", shell=True)
+    run_pipe("curl -fsSL https://starship.rs/install.sh | sh -s -- --yes")
 
     user_cfg = HOME / ".config" / "starship.toml"
     backup_path(user_cfg)
@@ -382,8 +506,8 @@ def starship():
 
 def fzf():
     mostrar_progeso("\n[+] Configuring FZF...\n")
-    # fzf binary already installed in apt_prereqs(); clone upstream repo for
-    # the install script (keybindings + completion) and run it non-interactively.
+    # Clone the upstream repo; its install script downloads a current fzf
+    # binary and writes the keybindings + completion, non-interactively.
     for target_str, sudo in ((str(HOME / ".fzf"), False), ("/root/.fzf", True)):
         target = Path(target_str)
         prefix = ["sudo"] if sudo else []
@@ -400,7 +524,10 @@ def fzf():
                 "git", "clone", "--depth=1",
                 "https://github.com/junegunn/fzf.git", str(target),
             ])
+        # HOME set explicitly: the install script writes $HOME/.fzf.zsh, and
+        # not every sudo (e.g. sudo-rs) resets HOME the same way.
         run(prefix + [
+            "env", f"HOME={target.parent}",
             str(target / "install"),
             "--key-bindings", "--completion",
             "--no-update-rc", "--no-bash", "--no-fish",
@@ -409,18 +536,19 @@ def fzf():
 
 def nvim():
     mostrar_progeso("\n[+] Installing Neovim (NvChad)...\n")
-    # Clean prior installs so reruns are idempotent.
-    for p in [HOME / ".config" / "nvim",
-              HOME / ".local" / "share" / "nvim",
+    # Clean prior installs so reruns are idempotent. The user's own config is
+    # moved aside, never deleted; plugin data/cache can be rebuilt.
+    backup_path(HOME / ".config" / "nvim")
+    for p in [HOME / ".local" / "share" / "nvim",
               HOME / ".cache" / "nvim"]:
         if p.exists():
             shutil.rmtree(p)
     for p in ["/root/.config/nvim", "/root/.local/share/nvim", "/root/.cache/nvim"]:
         run(["sudo", "rm", "-rf", p])
 
-    # Pin to current stable (April 2026). Bump deliberately — random
+    # Pin to current stable (October 2026). Bump deliberately — random
     # rebuilds shouldn't slide in via "latest".
-    NVIM_VERSION = "v0.12.2"
+    NVIM_VERSION = "v0.12.5"
     appimage = REPO / f"nvim-{NVIM_VERSION}-linux-x86_64.appimage"
     # Clean stale downloads from previous versions so disk doesn't grow.
     for stale in REPO.glob("nvim-*.appimage"):
@@ -429,10 +557,8 @@ def nvim():
     if (REPO / "nvim-linux-x86_64.appimage").exists():
         (REPO / "nvim-linux-x86_64.appimage").unlink()
     if not appimage.exists():
-        run([
-            "curl", "-L", "-o", str(appimage),
-            f"https://github.com/neovim/neovim/releases/download/{NVIM_VERSION}/nvim-linux-x86_64.appimage",
-        ])
+        download(f"https://github.com/neovim/neovim/releases/download/{NVIM_VERSION}/nvim-linux-x86_64.appimage",
+                 appimage)
     run(["chmod", "u+x", str(appimage)])
 
     sq = REPO / "squashfs-root"
@@ -441,8 +567,10 @@ def nvim():
     run([str(appimage), "--appimage-extract"], cwd=str(REPO))
 
     # Install to /opt/nvim and symlink AppRun -> /usr/local/bin/nvim.
-    # Old installer left a directory at /usr/bin/nvim — clean that up too.
-    run(["sudo", "rm", "-rf", "/opt/nvim", "/usr/local/bin/nvim", "/usr/bin/nvim"])
+    # Old installer left a directory at /usr/bin/nvim — clean that up too, but
+    # only if it is that directory (a real /usr/bin/nvim belongs to apt's neovim).
+    run(["sudo", "rm", "-rf", "/opt/nvim", "/usr/local/bin/nvim"])
+    run(["sudo", "sh", "-c", "[ -d /usr/bin/nvim ] && rm -rf /usr/bin/nvim || true"])
     run(["sudo", "mv", str(sq), "/opt/nvim"])
     run(["sudo", "ln", "-sf", "/opt/nvim/AppRun", "/usr/local/bin/nvim"])
 
@@ -470,17 +598,28 @@ def cambiar_terminal():
     mostrar_progeso("\n[+] Setting kitty as the system default terminal...\n")
 
     kitty_bin = HOME / ".local" / "kitty.app" / "bin" / "kitty"
+    if not kitty_bin.exists():
+        sys.exit(f"ERROR: {kitty_bin} not found; kitty was not installed.")
 
     # Cinnamon: panel keybind (Ctrl+Alt+T), nemo "Open Terminal Here", and
     # Mint's "Preferred Applications" GUI all read these two keys. The
     # exec-arg='--' matches X-TerminalArgExec in the kitty .desktop file —
     # kitty uses '--' as the separator before the command to run, not '-e'.
-    run(["gsettings", "set",
-         "org.cinnamon.desktop.default-applications.terminal",
-         "exec", "kitty"])
-    run(["gsettings", "set",
-         "org.cinnamon.desktop.default-applications.terminal",
-         "exec-arg", "--"])
+    # Absolute path: ~/.local/bin is only on the session PATH after the next
+    # login if it didn't exist yet, and Ctrl+Alt+T should work right away.
+    schema = "org.cinnamon.desktop.default-applications.terminal"
+    if gsettings_has(schema, "exec"):
+        run(["gsettings", "set", schema, "exec", str(kitty_bin)])
+        run(["gsettings", "set", schema, "exec-arg", "--"])
+    else:
+        yellow(); print("  (no Cinnamon terminal setting here; skipping gsettings)"); white()
+
+    # xdg-terminal-exec (used by newer desktops/apps to pick the terminal).
+    terms = HOME / ".config" / "xdg-terminals.list"
+    lines = terms.read_text().splitlines() if terms.exists() else []
+    if not lines or lines[0].strip() != "kitty.desktop":
+        terms.parent.mkdir(parents=True, exist_ok=True)
+        terms.write_text("\n".join(["kitty.desktop"] + [l for l in lines if l.strip() != "kitty.desktop"]) + "\n")
 
     # Debian-wide alternative — covers scripts/IDEs that hard-code
     # /usr/bin/x-terminal-emulator. Priority 50 beats gnome-terminal's 40;
@@ -500,6 +639,8 @@ def cambiar_terminal():
 
 def aviso_final():
     yellow()
+    for aviso in AVISOS:
+        print(f"\n[!] {aviso}")
     print("\n[!] IMPORTANTE: cierra sesión y vuelve a entrar para que zsh sea tu shell por defecto.")
     print("    Para probarlo inmediatamente en esta terminal: `exec zsh`")
     print("\n[!] Si aceptaste cambiar la terminal por defecto:")
@@ -507,12 +648,12 @@ def aviso_final():
     print("    -> Cierra sesión para que todos los procesos hereden la nueva configuración.")
     print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
     print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
-    print("        python3 tools/keybindings/apply_super_arrows.py")
+    print(f"        python3 {shlex.quote(str(REPO / 'tools' / 'keybindings' / 'apply_super_arrows.py'))}")
     print(f"\n[!] Tema instalado: {THEMES[CHOICE['theme']]['name']}. Para cambiarlo más tarde sin reinstalar:")
-    print("        python3 main.py --switch-theme classic     (o moonfly)")
+    print(f"        python3 {shlex.quote(str(REPO / 'main.py'))} --switch-theme classic     (o moonfly)")
     if CHOICE["desktop"]:
         print("\n[!] Escritorio Moonfly aplicado. Tamaño/estilo de los contadores de la barra:")
-        print("        bash tools/desktop/set-badges.sh 11 black     (tamaño 8-14, black o colored)")
+        print(f"        bash {shlex.quote(str(DESKTOP_DIR / 'set-badges.sh'))} 11 black     (tamaño 8-14, black o colored)")
         print("    Para deshacerlo, usa el comando 'To undo' que se mostró arriba.")
     white()
 
@@ -694,6 +835,11 @@ def parse_args():
 
 """PROGRAMA PRINCIPAL"""
 if __name__ == '__main__':
+    if sys.version_info < (3, 9):
+        sys.exit("ERROR: Python 3.9 or newer is required.")
+    if os.geteuid() == 0:
+        sys.exit("ERROR: no lo ejecutes con sudo ni como root; usa: python3 main.py\n"
+                 "       (te pedirá la contraseña cuando haga falta)")
     args = parse_args()
     purple()
     print(BANNER)
@@ -711,14 +857,14 @@ if __name__ == '__main__':
     instalar()
 
     blue()
-    while True:
-        cambiar = input("\n¿Deseas cambiar la terminal por defecto? (s/n): ").lower()
-        if cambiar not in ["s", "n"]:
-            print("\nSolo puedes responder 's' o 'n'\n")
-            continue
-        if cambiar == "s":
+    if preguntar_si_no("\n¿Deseas cambiar la terminal por defecto? (s/n): "):
+        try:
             cambiar_terminal()
-        break
+        except subprocess.CalledProcessError as e:
+            red()
+            print(f"\n[!] No se pudo poner kitty como terminal por defecto (exit {e.returncode}): {e.cmd}")
+            print("    El resto de la instalación está bien; puedes elegir kitty en Aplicaciones preferidas.")
+            white()
 
     aviso_final()
     green()

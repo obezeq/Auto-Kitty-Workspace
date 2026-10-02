@@ -23,14 +23,14 @@
 - **Optional Moonfly desktop theme** for Linux Mint Cinnamon (windows, panel, icons).  
 - **Switch themes later** on an existing install, without reinstalling.  
 
-> Compatible with any Debian-based distribution.  
-> Tested on **Linux Mint 22.3 (Zena)** and **Ubuntu 24.04 (Noble Numbat)**.
+> Compatible with any Debian-based distribution (amd64).  
+> Tested on **Linux Mint 22.3 (Zena)** and **Ubuntu 24.04 (Noble Numbat)**; every package it needs is also available on Linux Mint 21.x, LMDE 7 and Ubuntu 26.04 (the base of Linux Mint 23).
 
 
 
 ## Installation
 
-> **Requirements:** Git and Python 3 must be installed.
+> **Requirements:** Git and Python 3.9+ must be installed. Run it as your normal user, **not** with `sudo` — it asks for your password when it needs it.
 
 ```bash
 git clone https://github.com/obezeq/Auto-Kitty-Workspace.git ~/Auto-Kitty-Workspace
@@ -139,7 +139,10 @@ The installation script performs the following tasks:
 ## Important Notes
 
 * **Log out and log back in** after installation so the default-shell change to zsh takes effect. To preview it in the current terminal without a re-login, run `exec zsh`.
-* The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, and `~/.config/starship.toml` with a `.backup.<timestamp>` suffix.
+* The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, `~/.config/starship.toml` and `~/.config/nvim/` with a `.backup.<timestamp>` suffix.
+* **PATH and your own settings:** zsh keeps the PATH from your desktop session and `~/.profile` (login shells/SSH too, via `~/.zprofile`), always includes `~/.local/bin`, `~/bin` and `~/.cargo/bin`, and loads `nvm` if you have it. Put your own exports, PATH entries and aliases in `~/.zshrc.local` — reinstalling or switching theme never overwrites it, and lines other installers appended to an older Auto-Kitty `~/.zshrc` are moved there automatically.
+* If the system is still installing updates in the background (common right after a fresh Mint install), the installer waits for apt to be free instead of failing.
+* `bat` and `lsd` are installed from the bundled `.deb` files only when the system doesn't already have the same or a newer version.
 * The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
 * Hack Nerd Font is downloaded and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).

@@ -1,4 +1,3 @@
-# GNU nano 6.2
 # Fix the Java Problem
 export _JAVA_AWT_WM_NONREPARENTING=1
 
@@ -48,40 +47,61 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 # Manual configuration
 
-# Prepend user-local bins; preserve the inherited PATH from /etc/profile
-# (snap, /usr/local/sbin, nvm, etc.). typeset -U dedupes automatically so
-# sourcing twice doesn't grow PATH.
+# Prepend user-local bins; preserve the inherited PATH from the desktop
+# session (/etc/environment, /etc/profile, ~/.profile: snap, /usr/local/sbin,
+# etc.). typeset -U dedupes automatically so sourcing twice doesn't grow PATH.
+# These are added even if they don't exist yet, so tools installed there
+# later (pipx, uv, cargo...) work without touching this file.
 typeset -U path PATH
 path=(
   "$HOME/.local/bin"
+  "$HOME/bin"
   "$HOME/.cargo/bin"
   "$HOME/.local/kitty.app/bin"
   $path
 )
+# Go's official install only documents ~/.profile; add it here too (only
+# if installed — (N-/) drops the entry when the directory doesn't exist).
+path+=( /usr/local/go/bin(N-/) "$HOME"/go/bin(N-/) )
 export PATH
 
-# Manual aliases
-alias ll='lsd -lh --group-dirs=first'
-alias la='lsd -a --group-dirs=first'
-alias l='lsd --group-dirs=first'
-alias lla='lsd -lha --group-dirs=first'
-alias ls='lsd --group-dirs=first'
-alias cat='bat'
+# nvm is usually set up in ~/.bashrc, which zsh never reads. Load it here so
+# node/npm keep working after switching to zsh. (nvm's own installer sees
+# "nvm.sh" in this file and won't add it twice.)
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+# Manual aliases — only when the tool exists, so a missing package never
+# breaks basic commands like ls or cat.
+if (( $+commands[lsd] )); then
+  alias ll='lsd -lh --group-dirs=first'
+  alias la='lsd -a --group-dirs=first'
+  alias l='lsd --group-dirs=first'
+  alias lla='lsd -lha --group-dirs=first'
+  alias ls='lsd --group-dirs=first'
+fi
+# Debian/Ubuntu's own bat package names the binary `batcat`.
+if (( $+commands[bat] )); then
+  alias cat='bat'
+elif (( $+commands[batcat] )); then
+  alias cat='batcat'
+fi
 alias clear-histfile='rm $HISTFILE'
 alias c='clear'
 alias copy='kitten clipboard'
-alias update='sudo apt update && sudo apt full-upgrade -y && sudo flatpak update'
+alias update='sudo apt update && sudo apt full-upgrade -y && { ! (( $+commands[flatpak] )) || sudo flatpak update -y; }'
 alias autoremove='sudo apt autoclean && sudo apt autoremove'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # Plugins — guard each source so a missing package doesn't kill the shell.
-[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] \
-  && source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# zsh-syntax-highlighting goes last, as its docs require.
 [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ] \
   && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 [ -f /usr/share/zsh-sudo/sudo.plugin.zsh ] \
   && source /usr/share/zsh-sudo/sudo.plugin.zsh
+[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] \
+  && source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Functions
 
@@ -123,6 +143,10 @@ zle -N zle-keymap-select
  
 # Start with beam shape cursor on zsh startup and after every command.
 zle-line-init() { zle-keymap-select 'beam'}
+
+# Your own additions (PATH, exports, aliases...) go in ~/.zshrc.local:
+# reinstalling or switching theme never overwrites that file.
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
 # Guard so zsh starts cleanly even if starship isn't on PATH yet
 # (e.g. first zsh session before logout/relogin picks up the new PATH).
