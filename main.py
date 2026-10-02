@@ -242,7 +242,16 @@ def preflight():
 
 def apt_prereqs():
     mostrar_progeso("\n[+] Installing apt prerequisites...\n")
-    run(APT + ["update"])
+    # One broken third-party repo (expired key: Spotify, Chrome, Docker...)
+    # makes `apt-get update` exit 100 even though the Ubuntu/Mint lists were
+    # refreshed fine. Warn and carry on; the install below still fails
+    # loudly if something we need really can't be fetched.
+    if run(APT + ["update"], check=False).returncode != 0:
+        aviso = ("`apt-get update` dio errores en algún repositorio (mira las líneas 'E:' / 'W:' de arriba).\n"
+                 "    Suele ser un repo de terceros con la clave caducada; la instalación sigue igualmente.\n"
+                 "    Arréglalo con las instrucciones de ese programa o desactívalo en 'Fuentes de software'.")
+        AVISOS.append(aviso)
+        yellow(); print(f"\n[!] {aviso}\n"); white()
     run(APT + [
         "install", "-y",
         "curl", "wget", "unzip", "git", "zsh",

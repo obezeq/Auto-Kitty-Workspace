@@ -48,7 +48,9 @@ fi
 
 echo "[2/5] Installing build tools (may ask for your password)"
 APT="sudo apt-get -o DPkg::Lock::Timeout=600"
-$APT update >/dev/null
+# A broken third-party repo (e.g. an expired key) makes update fail even when
+# the Ubuntu/Mint lists refreshed fine; don't let that stop the theme.
+$APT update >/dev/null 2>&1 || echo "   (note: apt update reported errors in some repository; continuing)"
 $APT install -y git curl sassc papirus-icon-theme >/dev/null
 # Only needed for old GTK2 apps; newer releases may drop them, so don't fail on them
 for pkg in gtk2-engines-murrine gnome-themes-extra; do
