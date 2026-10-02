@@ -40,7 +40,7 @@ THEMES = {
 CHOICE = {"theme": "classic", "desktop": False}
 
 
-"""LOGOTIPO DE LA APLICACIÓN"""
+"""APP LOGO"""
 BANNER = """
  █████╗ ██╗   ██╗████████╗ ██████╗       ██╗  ██╗██╗████████╗████████╗██╗   ██╗
 ██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗      ██║ ██╔╝██║╚══██╔══╝╚══██╔══╝╚██╗ ██╔╝
@@ -58,48 +58,48 @@ BANNER = """
 """
 
 
-"""COLORES"""
-def red():  # Rojo
+"""COLORS"""
+def red():
     stdout.write("\033[1;31m")
 
 
-def green():  # Verde
+def green():
     stdout.write("\033[0;32m")
 
 
-def blue():  # Azul
+def blue():
     stdout.write("\033[1;34m")
 
 
-def yellow():  # Amarillo
+def yellow():
     stdout.write("\033[1;33m")
 
 
-def orange():  # Naranja
+def orange():
     stdout.write("\033[1;38;5;208m")
 
 
-def white():  # Blanco
+def white():
     stdout.write("\033[1;37m")
 
 
-def purple():  # Morado
+def purple():
     stdout.write("\033[1;35m")
 
 
-def cyan():  # Cian
+def cyan():
     stdout.write("\033[1;36m")
 
 
-def light_gray():  # Gris claro
+def light_gray():
     stdout.write("\033[0;37m")
 
 
-def dark_gray():  # Gris oscuro
+def dark_gray():
     stdout.write("\033[1;30m")
 
 
-def light_blue():  # Azul claro
+def light_blue():
     stdout.write("\033[1;94m")
 
 
@@ -152,9 +152,9 @@ def gsettings_has(schema, key):
     return res.returncode == 0 and key in res.stdout.split()
 
 
-def mostrar_progeso(texto):
+def print_step(text):
     orange()
-    print(texto)
+    print(text)
     white()
 
 
@@ -226,9 +226,9 @@ def save_state(theme):
     (STATE_DIR / "theme").write_text(theme + "\n")
 
 
-"""FUNCIONES PRINCIPALES"""
+"""INSTALL PHASES"""
 def preflight():
-    mostrar_progeso("\n[+] Preflight checks...\n")
+    print_step("\n[+] Preflight checks...\n")
     if shutil.which("apt") is None:
         sys.exit("ERROR: this installer requires apt (Debian/Ubuntu/Mint).")
     if platform.machine() not in ("x86_64", "amd64"):
@@ -241,17 +241,17 @@ def preflight():
 
 
 def apt_prereqs():
-    mostrar_progeso("\n[+] Installing apt prerequisites...\n")
+    print_step("\n[+] Installing apt prerequisites...\n")
     # One broken third-party repo (expired key: Spotify, Chrome, Docker...)
     # makes `apt-get update` exit 100 even though the Ubuntu/Mint lists were
     # refreshed fine. Warn and carry on; the install below still fails
     # loudly if something we need really can't be fetched.
     if run(APT + ["update"], check=False).returncode != 0:
-        aviso = ("`apt-get update` dio errores en algún repositorio (mira las líneas 'E:' / 'W:' de arriba).\n"
-                 "    Suele ser un repo de terceros con la clave caducada; la instalación sigue igualmente.\n"
-                 "    Arréglalo con las instrucciones de ese programa o desactívalo en 'Fuentes de software'.")
-        AVISOS.append(aviso)
-        yellow(); print(f"\n[!] {aviso}\n"); white()
+        note = ("`apt-get update` dio errores en algún repositorio (mira las líneas 'E:' / 'W:' de arriba).\n"
+                "    Suele ser un repo de terceros con la clave caducada; la instalación sigue igualmente.\n"
+                "    Arréglalo con las instrucciones de ese programa o desactívalo en 'Fuentes de software'.")
+        END_NOTES.append(note)
+        yellow(); print(f"\n[!] {note}\n"); white()
     run(APT + [
         "install", "-y",
         "curl", "wget", "unzip", "git", "zsh",
@@ -271,7 +271,7 @@ def apt_prereqs():
 
 
 def kitty_install():
-    mostrar_progeso("\n[+] Installing Kitty...\n")
+    print_step("\n[+] Installing Kitty...\n")
     # Official kitty installer (apt version is too old). launch=n: by default
     # it opens a kitty window at the end, before the config is in place.
     run_pipe("curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n")
@@ -314,7 +314,7 @@ def kitty_terminfo():
     kitty has shipped its terminfo at a few different subpaths inside the
     binary distribution; check the documented ones before giving up.
     """
-    mostrar_progeso("\n[+] Registering xterm-kitty terminfo...\n")
+    print_step("\n[+] Registering xterm-kitty terminfo...\n")
     base = HOME / ".local" / "kitty.app"
 
     src_candidates = [
@@ -358,12 +358,12 @@ def kitty_terminfo():
 
 
 # Messages shown again at the very end, so they don't get lost in the log.
-AVISOS = []
+END_NOTES = []
 
 ZPROFILE_LINE = "[[ -f ~/.profile ]] && emulate sh -c '. ~/.profile'"
 
 
-def conservar_extras_zshrc(old_rc: Path):
+def keep_zshrc_extras(old_rc: Path):
     """Keep what other installers (nvm, uv, bun, conda...) appended to an
     Auto-Kitty ~/.zshrc: move it to ~/.zshrc.local, which the new .zshrc
     sources and reinstalls never overwrite. Call before backing up old_rc."""
@@ -373,8 +373,8 @@ def conservar_extras_zshrc(old_rc: Path):
     ends = [i for i, l in enumerate(lines)
             if "starship init zsh" in l or l.startswith("zle-line-init() {")]
     if not ends or not any(l.startswith("# Manual aliases") for l in lines):
-        AVISOS.append("Tu ~/.zshrc anterior no era de Auto-Kitty: está guardado como ~/.zshrc.backup.*\n"
-                      "    Si tenías PATH, exports o alias propios ahí, cópialos a ~/.zshrc.local")
+        END_NOTES.append("Tu ~/.zshrc anterior no era de Auto-Kitty: está guardado como ~/.zshrc.backup.*\n"
+                         "    Si tenías PATH, exports o alias propios ahí, cópialos a ~/.zshrc.local")
         return
     extras = "\n".join(lines[ends[-1] + 1:]).strip()
     if not extras:
@@ -400,7 +400,7 @@ def zprofile():
     zp.write_text(f"{text}{sep}# Added by Auto-Kitty: same login PATH as bash (~/.profile)\n{ZPROFILE_LINE}\n")
 
 
-def avisar_bashrc():
+def warn_about_bashrc():
     """zsh doesn't read ~/.bashrc. Point out PATH/toolchain lines there that
     the new .zshrc doesn't already cover (nvm, ~/.local/bin, cargo and Go are)."""
     rc = HOME / ".bashrc"
@@ -413,13 +413,13 @@ def avisar_bashrc():
             if pat.search(l) and not l.lstrip().startswith("#")
             and "nvm" not in l.lower() and l.strip() not in done]
     if hits:
-        AVISOS.append("Tu ~/.bashrc configura cosas que zsh no lee. Si las usas, cópialas a ~/.zshrc.local\n"
-                      "    (o vuelve a ejecutar su instalador, que ya detectará zsh):\n"
-                      + "\n".join(f"        {h}" for h in hits[:15]))
+        END_NOTES.append("Tu ~/.bashrc configura cosas que zsh no lee. Si las usas, cópialas a ~/.zshrc.local\n"
+                         "    (o vuelve a ejecutar su instalador, que ya detectará zsh):\n"
+                         + "\n".join(f"        {h}" for h in hits[:15]))
 
 
 def zsh():
-    mostrar_progeso("\n[+] Configuring ZSH...\n")
+    print_step("\n[+] Configuring ZSH...\n")
     # zsh + plugins were installed in apt_prereqs(). Just change the default shells.
     zsh_bin = shutil.which("zsh") or "/usr/bin/zsh"
     user = pwd.getpwuid(os.getuid()).pw_name
@@ -428,12 +428,12 @@ def zsh():
 
     # Backup + install .zshrc for user and root
     user_rc = HOME / ".zshrc"
-    conservar_extras_zshrc(user_rc)
+    keep_zshrc_extras(user_rc)
     backup_path(user_rc)
     shutil.copy(REPO / "tools" / "zsh" / ".zshrc", user_rc)
     run(["sudo", "cp", str(REPO / "tools" / "zsh" / ".zshrc"), "/root/.zshrc"])
     zprofile()
-    avisar_bashrc()
+    warn_about_bashrc()
 
     # Bundled .deb plugins (bat, lsd) — apt install resolves deps, dpkg -i doesn't.
     # Skip a .deb when the same package is already installed at an equal or
@@ -466,7 +466,7 @@ def zsh():
 
 
 def hnf():
-    mostrar_progeso("\n[+] Installing Hack Nerd Fonts...\n")
+    print_step("\n[+] Installing Hack Nerd Fonts...\n")
     fonts_dir = HOME / ".local" / "share" / "fonts"
     fonts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,7 +496,7 @@ def hnf():
 
 
 def starship():
-    mostrar_progeso("\n[+] Installing Starship...\n")
+    print_step("\n[+] Installing Starship...\n")
     # Official installer; --yes makes it non-interactive.
     run_pipe("curl -fsSL https://starship.rs/install.sh | sh -s -- --yes")
 
@@ -514,7 +514,7 @@ def starship():
 
 
 def fzf():
-    mostrar_progeso("\n[+] Configuring FZF...\n")
+    print_step("\n[+] Configuring FZF...\n")
     # Clone the upstream repo; its install script downloads a current fzf
     # binary and writes the keybindings + completion, non-interactively.
     for target_str, sudo in ((str(HOME / ".fzf"), False), ("/root/.fzf", True)):
@@ -544,7 +544,7 @@ def fzf():
 
 
 def nvim():
-    mostrar_progeso("\n[+] Installing Neovim (NvChad)...\n")
+    print_step("\n[+] Installing Neovim (NvChad)...\n")
     # Clean prior installs so reruns are idempotent. The user's own config is
     # moved aside, never deleted; plugin data/cache can be rebuilt.
     backup_path(HOME / ".config" / "nvim")
@@ -593,18 +593,18 @@ def nvim():
 
 
 def theme_extras():
-    mostrar_progeso(f"\n[+] Applying the {THEMES[CHOICE['theme']]['name']} theme extras...\n")
+    print_step(f"\n[+] Applying the {THEMES[CHOICE['theme']]['name']} theme extras...\n")
     set_bat_theme(THEMES[CHOICE["theme"]]["bat"])
     save_state(CHOICE["theme"])
 
 
 def desktop():
-    mostrar_progeso("\n[+] Applying the Moonfly desktop theme (Cinnamon)...\n")
+    print_step("\n[+] Applying the Moonfly desktop theme (Cinnamon)...\n")
     run(["bash", str(DESKTOP_DIR / "apply-desktop.sh")])
 
 
-def cambiar_terminal():
-    mostrar_progeso("\n[+] Setting kitty as the system default terminal...\n")
+def set_default_terminal():
+    print_step("\n[+] Setting kitty as the system default terminal...\n")
 
     kitty_bin = HOME / ".local" / "kitty.app" / "bin" / "kitty"
     if not kitty_bin.exists():
@@ -651,18 +651,18 @@ KEYBINDINGS_SCRIPT = REPO / "tools" / "keybindings" / "apply_super_arrows.py"
 KEYBINDINGS_SENTINEL = "# === auto-kitty: super+shift move_window ==="
 
 
-def keybindings_aplicados():
+def keybindings_enabled():
     conf = HOME / ".config" / "kitty" / "kitty.conf"
     return conf.exists() and KEYBINDINGS_SENTINEL in conf.read_text()
 
 
-def ofrecer_keybindings(flag):
+def offer_keybindings(flag):
     """Offer the opt-in Super+arrow split shortcuts (Cinnamon only).
     flag = --keybindings / --no-keybindings, or None to ask (Enter = yes)."""
     CHOICE["keybindings"] = False
     if flag is False or not is_cinnamon():
         return
-    if keybindings_aplicados():
+    if keybindings_enabled():
         CHOICE["keybindings"] = True
         return
     if flag is None:
@@ -680,7 +680,7 @@ def ofrecer_keybindings(flag):
         print("  (Super + Shift + arrows), so those Cinnamon shortcuts are turned off to let")
         print("  kitty receive the keys. Super + H/J/K/L keep working either way.")
         blue()
-        if not preguntar_si_no("\nEnable these shortcuts?"):
+        if not ask_yes_no("\nEnable these shortcuts?"):
             white()
             return
         white()
@@ -694,10 +694,10 @@ def ofrecer_keybindings(flag):
         white()
 
 
-def aviso_final():
+def print_end_notes():
     yellow()
-    for aviso in AVISOS:
-        print(f"\n[!] {aviso}")
+    for note in END_NOTES:
+        print(f"\n[!] {note}")
     print("\n[!] IMPORTANTE: cierra sesión y vuelve a entrar para que zsh sea tu shell por defecto.")
     print("    Para probarlo inmediatamente en esta terminal: `exec zsh`")
     print("\n[!] Si aceptaste cambiar la terminal por defecto:")
@@ -733,7 +733,7 @@ PHASES = [
 ]
 
 
-def instalar():
+def install():
     completed = []
     phases = PHASES + ([("desktop", desktop)] if CHOICE["desktop"] else [])
     for name, fn in phases:
@@ -755,13 +755,13 @@ def instalar():
             sys.exit(1)
 
 
-"""MENÚ Y CAMBIO DE TEMA"""
-def preguntar_si_no(texto):
+"""MENU AND THEME SWITCHING"""
+def ask_yes_no(text):
     """Yes/no question shown as (Y/n): Enter means yes. Accepts y/yes/s/si/sí
     and n/no in any case, ignoring surrounding spaces."""
     while True:
         try:
-            r = input(f"{texto} (Y/n): ").strip().lower()
+            r = input(f"{text} (Y/n): ").strip().lower()
         except EOFError:          # no terminal attached: take the default
             print()
             return True
@@ -772,7 +772,7 @@ def preguntar_si_no(texto):
         print("\nPlease answer y (yes) or n (no). Press Enter for yes.\n")
 
 
-def elegir_tema():
+def choose_theme():
     keys = list(THEMES)
     blue(); print("\nElige el estilo del workspace:\n")
     for i, key in enumerate(keys, 1):
@@ -789,7 +789,7 @@ def elegir_tema():
         print(f"Responde un número del 1 al {len(keys)}.")
 
 
-def decidir_escritorio(flag):
+def decide_desktop(flag):
     """Moonfly only: also theme the Cinnamon desktop? flag = --desktop/--no-desktop or None."""
     if flag is False:
         return False
@@ -801,8 +801,8 @@ def decidir_escritorio(flag):
     if flag is True:
         return True
     blue()
-    return preguntar_si_no("\n¿Aplicar también el escritorio Moonfly (ventanas negras con verde, "
-                           "panel negro, iconos Papirus)?")
+    return ask_yes_no("\n¿Aplicar también el escritorio Moonfly (ventanas negras con verde, "
+                      "panel negro, iconos Papirus)?")
 
 
 LEGACY_KITTY_LINES = [re.compile(p) for p in (
@@ -817,7 +817,7 @@ LEGACY_KITTY_LINES = [re.compile(p) for p in (
 )]
 
 
-def limpiar_kitty_conf(path):
+def clean_kitty_conf(path):
     """Bring an older kitty.conf up to date without touching the user's own keybindings."""
     out, in_kitten_block = [], False
     for line in path.read_text().splitlines():
@@ -840,13 +840,13 @@ def limpiar_kitty_conf(path):
     path.write_text(text)
 
 
-def cambiar_tema(theme, desktop_flag):
+def switch_theme(theme, desktop_flag):
     """--switch-theme: re-theme an existing install (kitty, prompt, bat, NvChad) without reinstalling."""
     CHOICE["theme"] = theme
     kitty_dir = HOME / ".config" / "kitty"
     if not (kitty_dir / "kitty.conf").exists():
         sys.exit("ERROR: no encuentro ~/.config/kitty/kitty.conf. Ejecuta primero: python3 main.py")
-    mostrar_progeso(f"\n[+] Cambiando al tema {THEMES[theme]['name']}...\n")
+    print_step(f"\n[+] Cambiando al tema {THEMES[theme]['name']}...\n")
     run(["sudo", "-v"])
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -860,7 +860,7 @@ def cambiar_tema(theme, desktop_flag):
             shutil.copy(f, backup / f.name)
     yellow(); print(f"  Backup de tu configuración actual: {backup}"); white()
 
-    limpiar_kitty_conf(kitty_dir / "kitty.conf")
+    clean_kitty_conf(kitty_dir / "kitty.conf")
     shutil.copy(theme_file("color.ini"), kitty_dir / "color.ini")
     shutil.copy(theme_file("starship.toml"), HOME / ".config" / "starship.toml")
     run(["sudo", "mkdir", "-p", "/root/.config"])
@@ -870,14 +870,14 @@ def cambiar_tema(theme, desktop_flag):
     save_state(theme)
 
     if theme == "moonfly":
-        CHOICE["desktop"] = decidir_escritorio(desktop_flag)
+        CHOICE["desktop"] = decide_desktop(desktop_flag)
         if CHOICE["desktop"]:
             desktop()
     else:
         backups = sorted(HOME.glob("theme-backup-desktop-*/restore.sh"))
         if backups and desktop_flag is not False and is_cinnamon():
             blue()
-            if desktop_flag or preguntar_si_no("\n¿Restaurar también el escritorio original de Mint?"):
+            if desktop_flag or ask_yes_no("\n¿Restaurar también el escritorio original de Mint?"):
                 run(["bash", str(backups[0])])
             white()
 
@@ -902,7 +902,7 @@ def parse_args():
     return p.parse_args()
 
 
-"""PROGRAMA PRINCIPAL"""
+"""MAIN PROGRAM"""
 if __name__ == '__main__':
     if sys.version_info < (3, 9):
         sys.exit("ERROR: Python 3.9 or newer is required.")
@@ -914,30 +914,30 @@ if __name__ == '__main__':
     print(BANNER)
 
     if args.switch_theme:
-        cambiar_tema(args.switch_theme, args.desktop)
+        switch_theme(args.switch_theme, args.desktop)
         sys.exit(0)
 
-    CHOICE["theme"] = args.theme or elegir_tema()
+    CHOICE["theme"] = args.theme or choose_theme()
     if CHOICE["theme"] == "moonfly":
-        CHOICE["desktop"] = decidir_escritorio(args.desktop)
+        CHOICE["desktop"] = decide_desktop(args.desktop)
     elif args.desktop:
         yellow(); print("\n[i] --desktop solo aplica al tema moonfly; se ignora."); white()
 
-    instalar()
+    install()
 
     blue()
-    if preguntar_si_no("\n¿Deseas cambiar la terminal por defecto?"):
+    if ask_yes_no("\n¿Deseas cambiar la terminal por defecto?"):
         try:
-            cambiar_terminal()
+            set_default_terminal()
         except subprocess.CalledProcessError as e:
             red()
             print(f"\n[!] No se pudo poner kitty como terminal por defecto (exit {e.returncode}): {e.cmd}")
             print("    El resto de la instalación está bien; puedes elegir kitty en Aplicaciones preferidas.")
             white()
 
-    ofrecer_keybindings(args.keybindings)
+    offer_keybindings(args.keybindings)
 
-    aviso_final()
+    print_end_notes()
     green()
     print("\n[+] La instalación y la configuración de la terminal se ha realizado correctamente.")
     print("    Abre Kitty desde el menú de aplicaciones para comprobarlo.")

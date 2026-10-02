@@ -32,8 +32,8 @@ SENTINEL = "# === auto-kitty: super+shift move_window ==="
 
 BLOCK = f"""
 {SENTINEL}
-# Mover el split actual (Super+Shift+Arrows)
-# Requiere haber liberado move-to-monitor en Cinnamon
+# Move the current split (Super+Shift+Arrows)
+# Needs Cinnamon's move-to-monitor shortcuts freed first
 map super+shift+left  move_window left
 map super+shift+right move_window right
 map super+shift+up    move_window up
