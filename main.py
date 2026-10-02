@@ -646,6 +646,54 @@ def cambiar_terminal():
     white()
 
 
+KEYBINDINGS_SCRIPT = REPO / "tools" / "keybindings" / "apply_super_arrows.py"
+# Must match SENTINEL in apply_super_arrows.py
+KEYBINDINGS_SENTINEL = "# === auto-kitty: super+shift move_window ==="
+
+
+def keybindings_aplicados():
+    conf = HOME / ".config" / "kitty" / "kitty.conf"
+    return conf.exists() and KEYBINDINGS_SENTINEL in conf.read_text()
+
+
+def ofrecer_keybindings(flag):
+    """Offer the opt-in Super+arrow split shortcuts (Cinnamon only).
+    flag = --keybindings / --no-keybindings, or None to ask (Enter = yes)."""
+    CHOICE["keybindings"] = False
+    if flag is False or not is_cinnamon():
+        return
+    if keybindings_aplicados():
+        CHOICE["keybindings"] = True
+        return
+    if flag is None:
+        blue()
+        print("\nOptional: Super + arrow keys to move between kitty splits")
+        white()
+        print("  kitty can split one window into several terminals side by side")
+        print("  (F5 / F6 create a split). These shortcuts make working with them fast:")
+        print()
+        print("    Super + arrows          jump to the split on the left / right / up / down")
+        print("    Super + Shift + arrows  move the current split to that side (reorder them)")
+        print()
+        print("  Super is the Windows key. Cinnamon uses those same keys to snap windows to")
+        print("  half the screen (Super + arrows) and to send them to another monitor")
+        print("  (Super + Shift + arrows), so those Cinnamon shortcuts are turned off to let")
+        print("  kitty receive the keys. Super + H/J/K/L keep working either way.")
+        blue()
+        if not preguntar_si_no("\nEnable these shortcuts?"):
+            white()
+            return
+        white()
+    try:
+        run([sys.executable, str(KEYBINDINGS_SCRIPT)])
+        CHOICE["keybindings"] = True
+    except subprocess.CalledProcessError as e:
+        red()
+        print(f"\n[!] Could not enable the Super + arrow shortcuts (exit {e.returncode}).")
+        print("    Everything else is installed; you can retry later with the command below.")
+        white()
+
+
 def aviso_final():
     yellow()
     for aviso in AVISOS:
@@ -655,9 +703,13 @@ def aviso_final():
     print("\n[!] Si aceptaste cambiar la terminal por defecto:")
     print("    -> Cinnamon usará kitty para Ctrl+Alt+T, el panel y nemo 'Abrir terminal aquí'.")
     print("    -> Cierra sesión para que todos los procesos hereden la nueva configuración.")
-    print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
-    print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
-    print(f"        python3 {shlex.quote(str(REPO / 'tools' / 'keybindings' / 'apply_super_arrows.py'))}")
+    if CHOICE.get("keybindings"):
+        print("\n[!] Atajos Super+flechas activados: muévete entre splits con Super+flechas")
+        print("    y reordénalos con Super+Shift+flechas (reabre kitty para usarlos).")
+    elif is_cinnamon():
+        print("\n[!] Opcional (solo Cinnamon): si quieres Super+flechas para moverte entre splits")
+        print("    y Super+Shift+flechas para reordenarlos, ejecuta:")
+        print(f"        python3 {shlex.quote(str(KEYBINDINGS_SCRIPT))}")
     print(f"\n[!] Tema instalado: {THEMES[CHOICE['theme']]['name']}. Para cambiarlo más tarde sin reinstalar:")
     print(f"        python3 {shlex.quote(str(REPO / 'main.py'))} --switch-theme classic     (o moonfly)")
     if CHOICE["desktop"]:
@@ -705,13 +757,19 @@ def instalar():
 
 """MENÚ Y CAMBIO DE TEMA"""
 def preguntar_si_no(texto):
+    """Yes/no question shown as (Y/n): Enter means yes. Accepts y/yes/s/si/sí
+    and n/no in any case, ignoring surrounding spaces."""
     while True:
-        r = input(texto).strip().lower()
-        if r in ("s", "si", "sí", "y", "yes"):
+        try:
+            r = input(f"{texto} (Y/n): ").strip().lower()
+        except EOFError:          # no terminal attached: take the default
+            print()
+            return True
+        if r in ("", "y", "yes", "s", "si", "sí"):
             return True
         if r in ("n", "no"):
             return False
-        print("\nSolo puedes responder 's' o 'n'\n")
+        print("\nPlease answer y (yes) or n (no). Press Enter for yes.\n")
 
 
 def elegir_tema():
@@ -744,7 +802,7 @@ def decidir_escritorio(flag):
         return True
     blue()
     return preguntar_si_no("\n¿Aplicar también el escritorio Moonfly (ventanas negras con verde, "
-                           "panel negro, iconos Papirus)? (s/n): ")
+                           "panel negro, iconos Papirus)?")
 
 
 LEGACY_KITTY_LINES = [re.compile(p) for p in (
@@ -819,7 +877,7 @@ def cambiar_tema(theme, desktop_flag):
         backups = sorted(HOME.glob("theme-backup-desktop-*/restore.sh"))
         if backups and desktop_flag is not False and is_cinnamon():
             blue()
-            if desktop_flag or preguntar_si_no("\n¿Restaurar también el escritorio original de Mint? (s/n): "):
+            if desktop_flag or preguntar_si_no("\n¿Restaurar también el escritorio original de Mint?"):
                 run(["bash", str(backups[0])])
             white()
 
@@ -837,6 +895,8 @@ def parse_args():
                    help="install this theme without showing the menu")
     p.add_argument("--desktop", action=argparse.BooleanOptionalAction, default=None,
                    help="also apply (or skip) the matching Cinnamon desktop theme (moonfly only)")
+    p.add_argument("--keybindings", action=argparse.BooleanOptionalAction, default=None,
+                   help="also enable (or skip) the Super+arrow split shortcuts (Cinnamon only)")
     p.add_argument("--switch-theme", choices=list(THEMES), metavar="THEME",
                    help="only change the theme of an existing install (classic or moonfly)")
     return p.parse_args()
@@ -866,7 +926,7 @@ if __name__ == '__main__':
     instalar()
 
     blue()
-    if preguntar_si_no("\n¿Deseas cambiar la terminal por defecto? (s/n): "):
+    if preguntar_si_no("\n¿Deseas cambiar la terminal por defecto?"):
         try:
             cambiar_terminal()
         except subprocess.CalledProcessError as e:
@@ -874,6 +934,8 @@ if __name__ == '__main__':
             print(f"\n[!] No se pudo poner kitty como terminal por defecto (exit {e.returncode}): {e.cmd}")
             print("    El resto de la instalación está bien; puedes elegir kitty en Aplicaciones preferidas.")
             white()
+
+    ofrecer_keybindings(args.keybindings)
 
     aviso_final()
     green()

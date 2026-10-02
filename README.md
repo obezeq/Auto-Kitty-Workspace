@@ -51,15 +51,24 @@ Elige el estilo del workspace:
 
 If you pick **Moonfly** on Linux Mint Cinnamon, it also asks whether to apply the matching desktop theme.
 
+Yes/no questions look like `(Y/n)`: just press <kbd>Enter</kbd> for **yes**, or type `n` for no (`y`, `Y`, `yes`, `s`, `sí` all count as yes).
+
+At the end it asks two more questions:
+
+1. Whether to make kitty your **default terminal** (see below).
+2. *(Cinnamon only)* Whether to enable the **Super + arrow shortcuts** for kitty splits — see [Super+arrow split keybindings](#superarrow-split-keybindings-cinnamon-only).
+
 You can skip the questions with flags:
 
 ```bash
 python3 main.py --theme classic                 # original look
 python3 main.py --theme moonfly --desktop       # Moonfly terminal + Moonfly desktop
 python3 main.py --theme moonfly --no-desktop    # Moonfly terminal only
+python3 main.py --keybindings                   # also enable Super+arrow split shortcuts, no question
+python3 main.py --no-keybindings                # don't enable them, no question
 ```
 
-At the end it asks whether to make kitty your **default terminal** (`s`/`n`). If you say yes, it sets Cinnamon's terminal setting (used by <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>, the panel and Nemo), `~/.config/xdg-terminals.list`, and the system-wide `x-terminal-emulator`. To undo it:
+**Default terminal:** if you say yes, it sets Cinnamon's terminal setting (used by <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>, the panel and Nemo), `~/.config/xdg-terminals.list`, and the system-wide `x-terminal-emulator`. To undo it:
 
 ```bash
 gsettings reset org.cinnamon.desktop.default-applications.terminal exec
@@ -202,7 +211,7 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd>/<kbd>↑</kbd>/<kbd>↓</kbd> | `resize_window narrower/wider/taller/shorter 3` | Resize the active split by 3 cells.        |
 | <kbd>F7</kbd>                                                         | `start_resizing_window`                           | Enter interactive resize mode (Esc to exit).    |
 
-> <kbd>Super</kbd> + <kbd>Shift</kbd> + arrows to **move** (swap) the active split with its neighbour is **opt-in** — run `python3 tools/keybindings/apply_super_arrows.py` once after the installer to free up Cinnamon's tiling shortcuts and append the matching kitty bindings. See the "Optional: Super+arrow split keybindings" section below.
+> On Cinnamon, <kbd>Super</kbd> + arrows only reach kitty, and <kbd>Super</kbd> + <kbd>Shift</kbd> + arrows (move the split) only exist, if you said **yes** to the shortcuts question at the end of the install. See [Super+arrow split keybindings](#superarrow-split-keybindings-cinnamon-only) below.
 
 
 ### Copy & Paste Between Buffers
@@ -258,22 +267,33 @@ Defined in `~/.zshrc` (the `lsd`/`bat` ones only if those tools are installed):
 
 
 
-## Optional: Super+arrow split keybindings (Cinnamon only)
+## Super+arrow split keybindings (Cinnamon only)
 
-The base installer ships a kitty config that already binds `Super+HJKL` for split navigation, which works on any desktop environment. If you also want **`Super+Arrows`** to move focus between splits and **`Super+Shift+Arrows`** to swap the active split with its neighbour, you need to free up those keys on the Cinnamon side first (by default Cinnamon binds them to window-tiling and move-to-monitor).
+kitty can split one window into several terminals side by side (<kbd>F5</kbd> / <kbd>F6</kbd>). These shortcuts make moving around them fast:
 
-After running `python3 main.py`, run:
+| Keys | What it does |
+| --- | --- |
+| <kbd>Super</kbd> + arrows | Jump to the split on the left / right / up / down. |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + arrows | Move the current split to that side (reorder your splits). |
+
+(<kbd>Super</kbd> is the Windows key.)
+
+**Why it's a question:** Cinnamon already uses those keys. <kbd>Super</kbd> + arrows snaps a window to half the screen, and <kbd>Super</kbd> + <kbd>Shift</kbd> + arrows sends it to another monitor. To let kitty receive the keys, those Cinnamon shortcuts are turned off. If you use them, answer `n`. <kbd>Super</kbd> + <kbd>H</kbd>/<kbd>J</kbd>/<kbd>K</kbd>/<kbd>L</kbd> moves between splits either way, on any desktop.
+
+The installer asks at the end (<kbd>Enter</kbd> = yes). You can also run it later, or again — it never adds the same lines twice:
 
 ```bash
 python3 tools/keybindings/apply_super_arrows.py
 ```
 
-That script:
+What it changes:
 
-1. Clears the eight Cinnamon `push-tile-*` / `move-to-monitor-*` shortcuts via `gsettings` so kitty can receive the keys.
-2. Appends the `super+shift+arrow → move_window` mappings to your installed `~/.config/kitty/kitty.conf` (idempotently — re-running won't duplicate the block).
+1. Clears the eight Cinnamon `push-tile-*` / `move-to-monitor-*` shortcuts via `gsettings` (skipping any your Cinnamon version doesn't have).
+2. Adds the `super+shift+arrow → move_window` mappings to `~/.config/kitty/kitty.conf`.
 
-It refuses to run on non-Cinnamon desktops (GNOME/KDE/XFCE), where you'd clear the equivalent shortcuts manually instead. Reopen kitty (or run `kitty @ load-config` inside a kitty window) afterward to pick up the new mappings.
+To get Cinnamon's shortcuts back: `gsettings reset-recursively org.cinnamon.desktop.keybindings.wm` (this resets *all* window-manager shortcuts to their defaults).
+
+It refuses to run on other desktops (GNOME/KDE/XFCE), where you'd free the equivalent shortcuts manually. Reopen kitty (or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd>) to use the new mappings.
 
 
 
