@@ -5,7 +5,7 @@
 	<img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/misc/transparent.png" height="30" width="0px"/>
 </h3>
 
-![overview](https://raw.githubusercontent.com/Juanfu224/Auto-Linux-Workspace/master/tools/images/Logo.png)
+![overview](tools/images/Logo.png)
 
 # Auto-Kitty-Workspace
 <p>
@@ -22,6 +22,8 @@
 - **Custom shortcuts** for a faster workflow.  
 - **Optional Moonfly desktop theme** for Linux Mint Cinnamon (windows, panel, icons).  
 - **Switch themes later** on an existing install, without reinstalling.  
+- **Kitty as the default terminal** (optional): <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>, the panel and Nemo's "Open in Terminal" all open kitty.  
+- **Handy shell aliases** (`ll`, `cat` with syntax highlighting, `update`...) and a PATH setup that keeps your existing tools working (`nvm`, `~/.local/bin`, `~/.profile`).  
 
 > Compatible with any Debian-based distribution (amd64).  
 > Tested on **Linux Mint 22.3 (Zena)** and **Ubuntu 24.04 (Noble Numbat)**; every package it needs is also available on Linux Mint 21.x, LMDE 7 and Ubuntu 26.04 (the base of Linux Mint 23).
@@ -36,7 +38,7 @@
 git clone https://github.com/obezeq/Auto-Kitty-Workspace.git ~/Auto-Kitty-Workspace
 cd ~/Auto-Kitty-Workspace
 python3 main.py
-````
+```
 
 The installer first asks which theme you want:
 
@@ -56,6 +58,15 @@ python3 main.py --theme classic                 # original look
 python3 main.py --theme moonfly --desktop       # Moonfly terminal + Moonfly desktop
 python3 main.py --theme moonfly --no-desktop    # Moonfly terminal only
 ```
+
+At the end it asks whether to make kitty your **default terminal** (`s`/`n`). If you say yes, it sets Cinnamon's terminal setting (used by <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>, the panel and Nemo), `~/.config/xdg-terminals.list`, and the system-wide `x-terminal-emulator`. To undo it:
+
+```bash
+gsettings reset org.cinnamon.desktop.default-applications.terminal exec
+sudo update-alternatives --auto x-terminal-emulator
+```
+
+Then **log out and back in** so zsh becomes your shell everywhere.
 
 
 
@@ -129,10 +140,13 @@ The installation script performs the following tasks:
 
 * **Kitty installation & configuration** — Sets up the terminal with the theme you pick (Classic or Moonfly) and keyboard shortcuts.
 * **Starship + ZSH setup** — Installs a fast, customizable shell prompt (matching your theme) with helpful plugins.
-* **Neovim (NvChad)** — Sets up a modern, modular development environment.
+* **Neovim (NvChad)** — Installs Neovim (pinned stable release, in `/opt/nvim`) with the NvChad starter config, plus what it needs on first launch (C compiler for treesitter, `ripgrep`, clipboard tools for X11 and Wayland).
 * **FZF** — Adds fuzzy finding for commands, files, and history.
 * **Plugins & utilities** — Installs `zsh-autosuggestions`, `zsh-syntax-highlighting`, `bat`, `lsd`, and more.
 * **Moonfly desktop (optional)** — Themes the Cinnamon desktop to match the Moonfly terminal.
+* **Default terminal (optional)** — Makes kitty the terminal Cinnamon and other apps open.
+
+Everything is set up for both your user and `root`, so `sudo -s` gets the same shell and prompt.
 
 
 
@@ -141,6 +155,7 @@ The installation script performs the following tasks:
 * **Log out and log back in** after installation so the default-shell change to zsh takes effect. To preview it in the current terminal without a re-login, run `exec zsh`.
 * The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, `~/.config/starship.toml` and `~/.config/nvim/` with a `.backup.<timestamp>` suffix.
 * **PATH and your own settings:** zsh keeps the PATH from your desktop session and `~/.profile` (login shells/SSH too, via `~/.zprofile`), always includes `~/.local/bin`, `~/bin` and `~/.cargo/bin`, and loads `nvm` if you have it. Put your own exports, PATH entries and aliases in `~/.zshrc.local` — reinstalling or switching theme never overwrites it, and lines other installers appended to an older Auto-Kitty `~/.zshrc` are moved there automatically.
+* `zsh` doesn't read `~/.bashrc`. If yours sets up tools like `pyenv`, `conda` or `sdkman`, the installer lists those lines at the end so you can copy them to `~/.zshrc.local` (or just re-run that tool's installer, which will detect zsh).
 * If the system is still installing updates in the background (common right after a fresh Mint install), the installer waits for apt to be free instead of failing.
 * `bat` and `lsd` are installed from the bundled `.deb` files only when the system doesn't already have the same or a newer version.
 * The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
@@ -148,6 +163,8 @@ The installation script performs the following tasks:
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
 * Re-running the script is safe — it backs up configs, skips already-installed fonts, and reuses existing clones.
 * The chosen theme is saved in `~/.config/auto-kitty/theme`.
+* Don't run it with `sudo`: it would install everything for `root` instead of you, so it refuses to start.
+* **kitty doesn't open in a virtual machine?** kitty needs OpenGL 3.3. Enable 3D acceleration in the VM settings (VirtualBox: Display → Enable 3D Acceleration).
 * If `nvim` shows deprecation warnings on first launch (e.g. `vim.lsp.get_active_clients` was removed in Neovim 0.12), run `:Lazy sync` inside Neovim once — NvChad's starter tracks upstream Neovim releases but the first run after a major version bump can occasionally lag a release behind.
 
 
@@ -204,16 +221,40 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 | Keys                                                  | Action                | Description                                     |
 | ----------------------------------------------------- | --------------------- | ----------------------------------------------- |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>     | `toggle_layout stack` | Switch to **stacked window mode**.              |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | `new_window_with_cwd` | Open a new **window** in the current directory. |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd>     | `new_tab_with_cwd`    | Open a new **tab** in the current directory.    |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | `launch --cwd=current --type=window` | Open a new **window** in the current directory. |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd>     | `launch --cwd=current --type=tab`    | Open a new **tab** in the current directory.    |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>     | `next_layout`                        | Cycle layouts: splits, tall, fat, grid, horizontal, vertical, stack. |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F5</kbd>    | `load_config_file`                   | Reload the kitty config (e.g. after switching theme). |
 
 
 
-### Command History
+### Shell (zsh + FZF)
 
-| Keys                           | Description                          |
-| ------------------------------ | ------------------------------------ |
-| <kbd>Ctrl</kbd> + <kbd>R</kbd> | Search and navigate command history. |
+| Keys                                   | Description                                              |
+| -------------------------------------- | -------------------------------------------------------- |
+| <kbd>Ctrl</kbd> + <kbd>R</kbd>         | Fuzzy-search your command history (FZF).                 |
+| <kbd>Ctrl</kbd> + <kbd>T</kbd>         | Fuzzy-find a file and paste its path (FZF).              |
+| <kbd>Alt</kbd> + <kbd>C</kbd>          | Fuzzy-find a folder and `cd` into it (FZF).              |
+| <kbd>Esc</kbd> <kbd>Esc</kbd>          | Add `sudo` to the start of the current/last command.     |
+| <kbd>Alt</kbd> + <kbd>←</kbd>/<kbd>→</kbd> | Move one word left/right.                            |
+| <kbd>→</kbd>                           | Accept the gray autosuggestion.                          |
+
+
+
+## Shell Aliases
+
+Defined in `~/.zshrc` (the `lsd`/`bat` ones only if those tools are installed):
+
+| Alias            | Runs                                               |
+| ---------------- | -------------------------------------------------- |
+| `ls`, `l`        | `lsd --group-dirs=first` (icons, folders first)    |
+| `ll` / `la` / `lla` | long list / all files / long list with all files |
+| `cat`            | `bat` (syntax highlighting; `batcat` on Debian/Ubuntu's own package) |
+| `c`              | `clear`                                            |
+| `copy`           | `kitten clipboard` (e.g. `cat file \| copy`)       |
+| `update`         | `apt update` + `full-upgrade`, then `flatpak update` if flatpak is installed |
+| `autoremove`     | `apt autoclean` + `autoremove`                     |
+| `clear-histfile` | Delete your zsh history file                       |
 
 
 
@@ -241,12 +282,14 @@ It refuses to run on non-Cinnamon desktops (GNOME/KDE/XFCE), where you'd clear t
 | Component          | Author     | Link                                    |
 | ------------------ | ---------- | --------------------------------------- |
 | **Script**         | Juanfu224  | [GitHub](https://github.com/Juanfu224)  |
-| **Powerlevel10k**  | romkatv    | [GitHub](https://github.com/romkatv)    |
 | **bat**            | sharkdp    | [GitHub](https://github.com/sharkdp)    |
 | **lsd**            | Peltoche   | [GitHub](https://github.com/Peltoche)   |
 | **Hack Nerd Font** | ryanoasis  | [GitHub](https://github.com/ryanoasis)  |
 | **FZF**            | junegunn   | [GitHub](https://github.com/junegunn)   |
 | **Neovim**         | Neovim     | [GitHub](https://github.com/neovim)     |
+| **NvChad**         | NvChad     | [GitHub](https://github.com/NvChad)     |
+| **zsh-autosuggestions / zsh-syntax-highlighting** | zsh-users | [GitHub](https://github.com/zsh-users) |
+| **sudo plugin**    | Oh My Zsh  | [GitHub](https://github.com/ohmyzsh)    |
 | **Kitty**          | kovidgoyal | [GitHub](https://github.com/kovidgoyal) |
 | **Catppuccin**     | Catppuccin | [GitHub](https://github.com/catppuccin) |
 | **Moonfly**        | bluz71     | [GitHub](https://github.com/bluz71)     |
