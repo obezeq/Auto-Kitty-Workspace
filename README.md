@@ -230,8 +230,8 @@ These shortcuts are configured in `kitty.conf` and help optimize navigation and 
 | Keys                                                  | Action                | Description                                     |
 | ----------------------------------------------------- | --------------------- | ----------------------------------------------- |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>     | `toggle_layout stack` | Switch to **stacked window mode**.              |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | `launch --cwd=current --type=window` | Open a new **window** in the current directory. |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd>     | `launch --cwd=current --type=tab`    | Open a new **tab** in the current directory.    |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | `launch --cwd=oldest --type=window`  | Open a new **window** in the current directory. |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd>     | `launch --cwd=oldest --type=tab`     | Open a new **tab** in the current directory.    |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd>     | `next_layout`                        | Cycle layouts: splits, tall, fat, grid, horizontal, vertical, stack. |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F5</kbd>    | `load_config_file`                   | Reload the kitty config (e.g. after switching theme). |
 
