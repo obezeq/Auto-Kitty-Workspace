@@ -143,6 +143,7 @@ zle -N zle-keymap-select
  
 # Start with beam shape cursor on zsh startup and after every command.
 zle-line-init() { zle-keymap-select 'beam'}
+zle -N zle-line-init
 
 # Your own additions (PATH, exports, aliases...) go in ~/.zshrc.local:
 # reinstalling or switching theme never overwrites that file.
