@@ -41,10 +41,12 @@ THEMES = {
 # Filled in by the menu / CLI flags before the install phases run.
 CHOICE = {"theme": "classic", "desktop": False}
 
-# Every third-party download, pinned to an exact release and checked with
-# SHA-256 before use (see download_verified). Assets are keyed by machine
-# ("any" = same file everywhere); preflight() only allows x86_64 for now, so
-# supporting arm64 means adding "aarch64" entries. Bump them with
+# The tools the installer downloads, pinned to an exact release and checked
+# with SHA-256 before use (see download_verified). Not pinned: the NvChad
+# starter config and, in the optional Moonfly desktop, the Colloid theme and
+# papirus-folders, which come from their latest commit. Assets are keyed by
+# machine ("any" = same file everywhere); preflight() only allows x86_64 for
+# now, so supporting arm64 means adding "aarch64" entries. Bump them with
 # scripts/update-pins.py, never by hand-editing a hash you didn't check.
 ARCH = "x86_64"
 PINNED = {
