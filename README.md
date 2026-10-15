@@ -317,6 +317,8 @@ It refuses to run on other desktops (GNOME/KDE/XFCE), where you'd free the equiv
 | **Papirus icons**  | PapirusDevelopmentTeam | [GitHub](https://github.com/PapirusDevelopmentTeam) |
 | **Starship**       | Starship   | [GitHub](https://github.com/starship)   |
 
+The Oh My Zsh [sudo plugin](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/sudo) is bundled unmodified as `tools/zsh/plugins/sudo.plugin.zsh` (from ohmyzsh commit `964ddf7`, MIT license in `tools/zsh/plugins/sudo.plugin.zsh.LICENSE`), so the installer doesn't download it at run time.
+
 > Inspired by **S4vitar** and **Yorkox0** ❤️
 
 

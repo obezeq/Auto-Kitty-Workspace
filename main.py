@@ -504,14 +504,13 @@ def zsh():
     if debs:
         run(APT + ["install", "-y"] + debs)
 
-    # ohmyzsh sudo plugin
-    sudo_plugin_dir = Path("/usr/share/zsh-sudo")
-    sudo_plugin_path = sudo_plugin_dir / "sudo.plugin.zsh"
-    if not sudo_plugin_path.exists():
-        tmp = REPO / "sudo.plugin.zsh"
-        download("https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/sudo/sudo.plugin.zsh", tmp)
-        run(["sudo", "mkdir", "-p", str(sudo_plugin_dir)])
-        run(["sudo", "mv", str(tmp), str(sudo_plugin_path)])
+    # ohmyzsh sudo plugin, vendored in tools/zsh/plugins/ (MIT, see the
+    # .LICENSE file next to it). Also replaces the copy older versions
+    # downloaded, which `sudo mv` left owned by the user (root's zsh sources it).
+    sudo_plugin_src = REPO / "tools" / "zsh" / "plugins" / "sudo.plugin.zsh"
+    sudo_plugin_path = Path("/usr/share/zsh-sudo") / "sudo.plugin.zsh"
+    if not (same_bytes(sudo_plugin_path, sudo_plugin_src) and sudo_plugin_path.stat().st_uid == 0):
+        run(["sudo", "install", "-D", "-m", "644", str(sudo_plugin_src), str(sudo_plugin_path)])
 
 
 def hnf():
