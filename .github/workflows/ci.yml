@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A new push to the same branch/PR cancels the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Pinned tool images, so local runs (see README) give the same result.
+      - name: ruff
+        run: docker run --rm -v "$PWD:/src:ro" -w /src ghcr.io/astral-sh/ruff:0.17.0 check --no-cache --output-format=github .
+
+      - name: py_compile
+        run: git ls-files -z '*.py' | xargs -0 python3 -m py_compile
+
+      - name: shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0
+
+  # Full install, run twice, in a throwaway container (see tests/container-test.sh).
+  install-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [linuxmintd/mint22.3-amd64, ubuntu:24.04]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install test on ${{ matrix.image }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: tests/container-test.sh -i "$IMAGE" -- --theme classic --no-desktop --no-keybindings --no-default-terminal

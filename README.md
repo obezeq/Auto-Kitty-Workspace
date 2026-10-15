@@ -201,6 +201,33 @@ For each tool it follows the project's `releases/latest` page on GitHub to the n
 
 
 
+## Development / CI
+
+Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+* **lint** — `ruff check` (rules in `ruff.toml`), `python3 -m py_compile` on every `.py`, and `shellcheck` on every `.sh`.
+* **install-test** — a full install in a throwaway Docker container, on Linux Mint 22.3 and Ubuntu 24.04.
+
+Both only need Docker, so you can run the same checks locally before pushing:
+
+```bash
+docker run --rm -v "$PWD:/src:ro" -w /src ghcr.io/astral-sh/ruff:0.17.0 check --no-cache .
+git ls-files -z '*.py' | xargs -0 python3 -m py_compile
+git ls-files -z '*.sh' | xargs -0 docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0
+```
+
+The install test runs `main.py` twice (to check reruns too) as a normal user with passwordless `sudo` and no terminal, then prints a `key=value` summary (installed versions, `zsh -i` errors, backups...) and `result=PASS` or `FAIL`. It takes a few minutes per image:
+
+```bash
+tests/container-test.sh                       # Linux Mint 22.3, default flags
+tests/container-test.sh -i ubuntu:24.04 -- --theme moonfly --no-desktop --no-keybindings --no-default-terminal
+tests/container-test.sh -h                    # all options (upgrade test from an older checkout, keep the container...)
+```
+
+It copies your working tree (tracked and untracked files, not ignored ones like `Hack.zip`) into the container, so uncommitted changes are tested too.
+
+
+
 ## Descriptions
 
 | Component                   | Description                                                     |
