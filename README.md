@@ -175,11 +175,11 @@ Everything is set up for both your user and `root`, so `sudo -s` gets the same s
 * `zsh` doesn't read `~/.bashrc`. If yours sets up tools like `pyenv`, `conda` or `sdkman`, the installer lists those lines at the end so you can copy them to `~/.zshrc.local` (or just re-run that tool's installer, which will detect zsh).
 * If the system is still installing updates in the background (common right after a fresh Mint install), the installer waits for apt to be free instead of failing.
 * **Pinned, verified downloads:** kitty, Starship, Neovim, `bat`, `lsd` and Hack Nerd Font are downloaded from their official GitHub releases at the exact versions listed in `PINNED` at the top of `main.py`, and each file's SHA-256 is checked before it is used. A file that doesn't match is deleted and the installer stops. fzf is cloned at its pinned release tag, and the commit is checked (its install script then fetches the fzf binary of that same version). Nothing is piped from `curl` into `sh`, and the repo contains no binaries. See [Updating pinned versions](#updating-pinned-versions).
-* `bat` and `lsd` go to `/usr/local/bin`, which comes before `/usr/bin` in `PATH` (and in `sudo`'s), so an older `bat`/`batcat` from apt or from a previous Auto-Kitty `.deb` doesn't get in the way. Each tool is skipped when that exact version is already installed.
+* `bat` and `lsd` go to `/usr/local/bin`, which comes before `/usr/bin` in `PATH` (and in `sudo`'s), so an older `bat`/`batcat` from apt or from a previous Auto-Kitty `.deb` doesn't get in the way. Each tool is skipped when that version or a newer one is already installed there.
 * The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
 * Hack Nerd Font is downloaded (and checked, see above) and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
-* Re-running the script is safe — it backs up configs that changed (unchanged ones aren't backed up again), skips already-installed fonts and tools that are already at the pinned version, reuses verified downloads kept in the repo folder, and reuses existing clones.
+* Re-running the script is safe — it backs up configs that changed (unchanged ones aren't backed up again), skips already-installed fonts and tools that are already at the pinned version or newer, reuses verified downloads kept in the repo folder, and reuses existing clones.
 * The chosen theme is saved in `~/.config/auto-kitty/theme`.
 * Don't run it with `sudo`: it would install everything for `root` instead of you, so it refuses to start.
 * **kitty doesn't open in a virtual machine?** kitty needs OpenGL 3.3. Enable 3D acceleration in the VM settings (VirtualBox: Display → Enable 3D Acceleration).
@@ -189,7 +189,9 @@ Everything is set up for both your user and `root`, so `sudo -s` gets the same s
 
 ## Updating pinned versions
 
-kitty, Starship, Neovim, `bat`, `lsd`, Hack Nerd Font and fzf are pinned in the `PINNED` table at the top of `main.py` (version, URL and SHA-256 per architecture; fzf has a tag and commit instead). The NvChad starter config and the optional Moonfly desktop's Colloid/Papirus themes are still cloned from their latest commit. To move to newer releases:
+kitty, Starship, Neovim, `bat`, `lsd`, Hack Nerd Font and fzf are pinned in the `PINNED` table at the top of `main.py` (version, URL and SHA-256 per architecture; fzf has a tag and commit instead). The NvChad starter config and the optional Moonfly desktop's Colloid/Papirus themes are still cloned from their latest commit.
+
+The pin is a minimum, not a forced version: when the copy in the installer's own location (`~/.local/kitty.app`, `/usr/local/bin`, `/opt/nvim`, `~/.fzf`) already reports the pinned version or a newer one (numeric comparison, so `0.10.0` is newer than `0.9.9`), a rerun keeps it and says so instead of downgrading it. Anything older is replaced by the pinned release. To move to newer releases:
 
 ```bash
 python3 scripts/update-pins.py --dry-run      # show what would change

@@ -214,15 +214,42 @@ def download_verified(name):
     return dest
 
 
-def has_version(binary, version):
-    """True if `binary --version` runs and its first line mentions version."""
+VERSION_RE = re.compile(r"v?(\d+(?:\.\d+)+)(?:[-+~].*)?")
+
+
+def version_key(text):
+    """(0, 49, 2) for "v0.49.2" / "0.49.2-dev+g1234", for comparing versions
+    numerically; None if text isn't a version. Trailing zeros are dropped so
+    that 1.2 == 1.2.0."""
+    m = VERSION_RE.fullmatch(text)
+    if not m:
+        return None
+    key = [int(n) for n in m.group(1).split(".")]
+    while key and key[-1] == 0:
+        key.pop()
+    return tuple(key)
+
+
+def has_version(binary, version, sudo=False):
+    """The version `binary --version` reports on its first line if it is
+    `version` or newer, else None. Newer counts so that a rerun never
+    downgrades a tool the user updated in our install location."""
     try:
-        res = subprocess.run([str(binary), "--version"], capture_output=True,
-                             text=True, check=False, timeout=60)
+        res = subprocess.run((["sudo"] if sudo else []) + [str(binary), "--version"],
+                             capture_output=True, text=True, check=False, timeout=60)
     except (OSError, subprocess.SubprocessError):
-        return False
+        return None
     first = (res.stdout.splitlines() or [""])[0]
-    return version.lstrip("v") in (t.lstrip("v") for t in first.split())
+    found = next((t for t in first.split() if version_key(t) is not None), None)
+    return found if found and version_key(found) >= version_key(version) else None
+
+
+def print_kept(name, found, version, where=""):
+    """Message for a tool has_version() found at the pinned version or newer."""
+    if version_key(found) == version_key(version):
+        print(f"  {name} {version} already installed{where}, skipping.")
+    else:
+        print(f"  {name} {found} already installed{where} (newer than the pinned {version}), keeping it.")
 
 
 def install_release_binary(name):
@@ -232,8 +259,9 @@ def install_release_binary(name):
     older apt/dpkg copy doesn't shadow it."""
     version = PINNED[name]["version"]
     dest = Path("/usr/local/bin") / name
-    if has_version(dest, version):
-        print(f"  {name} {version} already installed, skipping.")
+    found = has_version(dest, version)
+    if found:
+        print_kept(name, found, version)
         return
     archive = download_verified(name)
     with tempfile.TemporaryDirectory(prefix=f"akw-{name}-") as tmp:
@@ -455,8 +483,9 @@ def kitty_install():
     # umask), not mkdtemp, which would leave kitty.app private (0700).
     app = HOME / ".local" / "kitty.app"
     version = PINNED["kitty"]["version"]
-    if has_version(app / "bin" / "kitty", version):
-        print(f"  kitty {version} already installed, skipping.")
+    found = has_version(app / "bin" / "kitty", version)
+    if found:
+        print_kept("kitty", found, version)
     else:
         txz = download_verified("kitty")
         app.parent.mkdir(parents=True, exist_ok=True)
@@ -721,7 +750,11 @@ def fzf():
             white()
             backup_path(target, sudo=sudo)
             exists = False
-        if exists:
+        # A clone already at the pinned version or newer is left as it is.
+        found = has_version(target / "bin" / "fzf", tag, sudo=sudo) if exists else None
+        if found:
+            print_kept("fzf", found, tag, f" in {target}")
+        elif exists:
             # Older installs cloned master; move them to the pinned tag.
             run(git + ["-C", str(target), "fetch", "--depth=1", "origin", "tag", tag])
             run(git + ["-C", str(target), "checkout", "-q", tag])
@@ -732,7 +765,7 @@ def fzf():
             ])
         head = subprocess.run(prefix + ["git", "-C", str(target), "rev-parse", "HEAD"],
                               capture_output=True, text=True, check=True).stdout.strip()
-        if head != commit:
+        if not found and head != commit:
             sys.exit(f"ERROR: {target} is at {head}, but fzf {tag} is pinned to {commit}.")
         # HOME set explicitly: the install script writes $HOME/.fzf.zsh, and
         # not every sudo (e.g. sudo-rs) resets HOME the same way.
@@ -828,9 +861,9 @@ def nvim():
     # Old installer left a directory at /usr/bin/nvim — clean that up too, but
     # only if it is that directory (a real /usr/bin/nvim belongs to apt's neovim).
     version = PINNED["nvim"]["version"]
-    if (has_version("/opt/nvim/bin/nvim", version)
-            and os.path.realpath("/usr/local/bin/nvim") == "/opt/nvim/bin/nvim"):
-        print(f"  Neovim {version} already installed in /opt/nvim, skipping.")
+    found = has_version("/opt/nvim/bin/nvim", version)
+    if found and os.path.realpath("/usr/local/bin/nvim") == "/opt/nvim/bin/nvim":
+        print_kept("Neovim", found, version, " in /opt/nvim")
     else:
         tarball = download_verified("nvim")
         with tempfile.TemporaryDirectory(prefix="akw-nvim-") as tmp:
