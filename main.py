@@ -175,6 +175,40 @@ def backup_path(p: Path):
     return backup
 
 
+def same_bytes(a: Path, b: Path):
+    """True if both are readable files with identical contents."""
+    try:
+        return a.is_file() and b.is_file() and a.read_bytes() == b.read_bytes()
+    except OSError:
+        return False
+
+
+def install_file(src: Path, dest: Path):
+    """Copy src to dest, backing up a different existing dest first. When dest
+    already has the same bytes there's nothing to back up or copy, so reruns
+    don't pile up identical .backup.<epoch> files."""
+    if same_bytes(dest, src):
+        print(f"  {dest} is already up to date, no backup needed.")
+        return
+    backup_path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, dest)
+
+
+def dir_has_exactly(d: Path, files):
+    """True if d is a real directory holding exactly `files` (name -> source
+    path), each a regular file with the same bytes as its source. Replacing
+    such a directory loses nothing, so it needs no backup."""
+    try:
+        if d.is_symlink() or not d.is_dir():
+            return False
+        entries = {e.name: e for e in d.iterdir()}
+        return entries.keys() == files.keys() and all(
+            not e.is_symlink() and same_bytes(e, files[name]) for name, e in entries.items())
+    except OSError:
+        return False
+
+
 def theme_file(name, theme=None):
     """Path of a file inside tools/themes/<theme>/."""
     return THEMES_DIR / (theme or CHOICE["theme"]) / name
@@ -186,6 +220,10 @@ def is_cinnamon():
     return "cinnamon" in env.lower()
 
 
+NVCHAD_STARTER = "https://github.com/NvChad/starter"
+NVCHAD_THEME_RE = re.compile(r'theme\s*=\s*"[^"]*"')
+
+
 def set_nvchad_theme(nvchad_theme, regenerate=False):
     """Point NvChad's chadrc at the theme (user + root).
 
@@ -193,10 +231,9 @@ def set_nvchad_theme(nvchad_theme, regenerate=False):
     chadrc is enough. On an existing install the cache must be rebuilt
     (regenerate=True); never delete it, the starter config dofile()s it.
     """
-    pattern = re.compile(r'theme\s*=\s*"[^"]*"')
     chadrc = HOME / ".config" / "nvim" / "lua" / "chadrc.lua"
     if chadrc.exists():
-        chadrc.write_text(pattern.sub(f'theme = "{nvchad_theme}"', chadrc.read_text(), count=1))
+        chadrc.write_text(NVCHAD_THEME_RE.sub(f'theme = "{nvchad_theme}"', chadrc.read_text(), count=1))
     root_chadrc = "/root/.config/nvim/lua/chadrc.lua"
     run(["sudo", "sh", "-c",
          f'[ -f {root_chadrc} ] && sed -i \'0,/theme = "[^"]*"/s//theme = "{nvchad_theme}"/\' {root_chadrc} || true'],
@@ -307,12 +344,18 @@ def kitty_install():
         text = text.replace("Exec=kitty", f"Exec={exe}")
         desktop.write_text(text)
 
-    # Back up any existing config, then install ours
+    # Back up any existing config, then install ours (no backup when the
+    # directory already holds exactly our files, e.g. on a rerun).
     cfg_dir = HOME / ".config" / "kitty"
-    backup_path(cfg_dir)
-    cfg_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(REPO / "tools" / "kitty" / "kitty.conf", cfg_dir / "kitty.conf")
-    shutil.copy(theme_file("color.ini"), cfg_dir / "color.ini")
+    files = {"kitty.conf": REPO / "tools" / "kitty" / "kitty.conf",
+             "color.ini": theme_file("color.ini")}
+    if dir_has_exactly(cfg_dir, files):
+        print(f"  {cfg_dir} is already up to date, no backup needed.")
+    else:
+        backup_path(cfg_dir)
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        for name, src in files.items():
+            shutil.copy(src, cfg_dir / name)
 
 
 def kitty_terminfo():
@@ -436,8 +479,7 @@ def zsh():
     # Backup + install .zshrc for user and root
     user_rc = HOME / ".zshrc"
     keep_zshrc_extras(user_rc)
-    backup_path(user_rc)
-    shutil.copy(REPO / "tools" / "zsh" / ".zshrc", user_rc)
+    install_file(REPO / "tools" / "zsh" / ".zshrc", user_rc)
     run(["sudo", "cp", str(REPO / "tools" / "zsh" / ".zshrc"), "/root/.zshrc"])
     zprofile()
     warn_about_bashrc()
@@ -507,10 +549,7 @@ def starship():
     # Official installer; --yes makes it non-interactive.
     run_pipe("curl -fsSL https://starship.rs/install.sh | sh -s -- --yes")
 
-    user_cfg = HOME / ".config" / "starship.toml"
-    backup_path(user_cfg)
-    (HOME / ".config").mkdir(parents=True, exist_ok=True)
-    shutil.copy(theme_file("starship.toml"), user_cfg)
+    install_file(theme_file("starship.toml"), HOME / ".config" / "starship.toml")
 
     run(["sudo", "mkdir", "-p", "/root/.config"])
     run([
@@ -550,11 +589,54 @@ def fzf():
         ])
 
 
+def is_untouched_nvchad_starter(d: Path):
+    """True if d is a clone of the NvChad starter whose only change is the
+    theme line we set: every file is then in upstream git, so replacing it
+    loses nothing. Anything else (own edits, untracked files such as the
+    lazy-lock.json written on first launch, local commits, stashes) -> False."""
+    def git(*args):
+        res = subprocess.run(["git", "-C", str(d), *args],
+                             capture_output=True, text=True, check=False)
+        return res.stdout.rstrip("\n") if res.returncode == 0 else None
+    if d.is_symlink() or not (d / ".git").is_dir() or shutil.which("git") is None:
+        return False
+    if git("rev-parse", "--show-toplevel") != str(d.resolve()):
+        return False
+    if git("remote", "get-url", "origin") not in (NVCHAD_STARTER, NVCHAD_STARTER + ".git"):
+        return False
+    status = git("status", "--porcelain", "--ignored", "--untracked-files=all")
+    if status is None or status.splitlines() not in ([], [" M lua/chadrc.lua"]):
+        return False
+    if git("stash", "list") != "" or git("rev-list", "HEAD", "--branches", "--not", "--remotes") != "":
+        return False
+    # Files marked assume-unchanged/skip-worktree hide their edits from status.
+    tracked = git("ls-files", "-v")
+    if tracked is None or any(not l.startswith("H ") for l in tracked.splitlines()):
+        return False
+    if status:
+        # The theme value must be one we set, not the user's own choice.
+        head = git("show", "HEAD:lua/chadrc.lua")
+        current = (d / "lua" / "chadrc.lua").read_text().rstrip("\n")
+        m = NVCHAD_THEME_RE.search(current)
+        ours = {f'theme = "{t["nvchad"]}"' for t in THEMES.values()}
+        if head is None or not m or m.group(0) not in ours:
+            return False
+        if NVCHAD_THEME_RE.sub("", head, count=1) != NVCHAD_THEME_RE.sub("", current, count=1):
+            return False
+    return True
+
+
 def nvim():
     print_step("\n[+] Installing Neovim (NvChad)...\n")
     # Clean prior installs so reruns are idempotent. The user's own config is
-    # moved aside, never deleted; plugin data/cache can be rebuilt.
-    backup_path(HOME / ".config" / "nvim")
+    # moved aside, never deleted; plugin data/cache can be rebuilt. An
+    # untouched starter clone from a previous run needs no backup.
+    nvim_cfg = HOME / ".config" / "nvim"
+    if is_untouched_nvchad_starter(nvim_cfg):
+        print(f"  {nvim_cfg} is an unmodified NvChad starter clone, replacing it without a backup.")
+        shutil.rmtree(nvim_cfg)
+    else:
+        backup_path(nvim_cfg)
     for p in [HOME / ".local" / "share" / "nvim",
               HOME / ".cache" / "nvim"]:
         if p.exists():
@@ -591,10 +673,10 @@ def nvim():
     run(["sudo", "ln", "-sf", "/opt/nvim/AppRun", "/usr/local/bin/nvim"])
 
     # NvChad starter config (for user and root)
-    run(["git", "clone", "https://github.com/NvChad/starter", str(HOME / ".config" / "nvim")])
+    run(["git", "clone", NVCHAD_STARTER, str(nvim_cfg)])
     run([
         "sudo", "bash", "-c",
-        "git clone https://github.com/NvChad/starter /root/.config/nvim",
+        f"git clone {NVCHAD_STARTER} /root/.config/nvim",
     ])
     set_nvchad_theme(THEMES[CHOICE["theme"]]["nvchad"])
 

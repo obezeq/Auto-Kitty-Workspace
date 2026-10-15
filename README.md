@@ -162,7 +162,7 @@ Everything is set up for both your user and `root`, so `sudo -s` gets the same s
 ## Important Notes
 
 * **Log out and log back in** after installation so the default-shell change to zsh takes effect. To preview it in the current terminal without a re-login, run `exec zsh`.
-* The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, `~/.config/starship.toml` and `~/.config/nvim/` with a `.backup.<timestamp>` suffix.
+* The installer automatically backs up any existing `~/.zshrc`, `~/.config/kitty/`, `~/.config/starship.toml` and `~/.config/nvim/` with a `.backup.<timestamp>` suffix. It skips the backup only when nothing would be lost: the file (or the whole `~/.config/kitty/`) already has exactly what it would install, or `~/.config/nvim/` is an unmodified NvChad starter clone (once you've opened Neovim it has a `lazy-lock.json`, so it's still backed up).
 * **PATH and your own settings:** zsh keeps the PATH from your desktop session and `~/.profile` (login shells/SSH too, via `~/.zprofile`), always includes `~/.local/bin`, `~/bin` and `~/.cargo/bin`, and loads `nvm` if you have it. Put your own exports, PATH entries and aliases in `~/.zshrc.local` — reinstalling or switching theme never overwrites it, and lines other installers appended to an older Auto-Kitty `~/.zshrc` are moved there automatically.
 * `zsh` doesn't read `~/.bashrc`. If yours sets up tools like `pyenv`, `conda` or `sdkman`, the installer lists those lines at the end so you can copy them to `~/.zshrc.local` (or just re-run that tool's installer, which will detect zsh).
 * If the system is still installing updates in the background (common right after a fresh Mint install), the installer waits for apt to be free instead of failing.
@@ -170,7 +170,7 @@ Everything is set up for both your user and `root`, so `sudo -s` gets the same s
 * The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
 * Hack Nerd Font is downloaded and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
-* Re-running the script is safe — it backs up configs, skips already-installed fonts, and reuses existing clones.
+* Re-running the script is safe — it backs up configs that changed (unchanged ones aren't backed up again), skips already-installed fonts, and reuses existing clones.
 * The chosen theme is saved in `~/.config/auto-kitty/theme`.
 * Don't run it with `sudo`: it would install everything for `root` instead of you, so it refuses to start.
 * **kitty doesn't open in a virtual machine?** kitty needs OpenGL 3.3. Enable 3D acceleration in the VM settings (VirtualBox: Display → Enable 3D Acceleration).
