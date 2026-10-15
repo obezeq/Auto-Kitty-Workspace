@@ -442,7 +442,9 @@ def kitty_install():
     print_step("\n[+] Installing Kitty...\n")
     # Official kitty binary release (apt version is too old), installed into
     # ~/.local/kitty.app the same way the official installer.sh does it:
-    # extract to a temp dir, delete the old kitty.app, move the new one in.
+    # extract to a new dir inside a temp dir, delete the old kitty.app, move
+    # the new one in. That new dir is made with mkdir (0755 with the usual
+    # umask), not mkdtemp, which would leave kitty.app private (0700).
     app = HOME / ".local" / "kitty.app"
     version = PINNED["kitty"]["version"]
     if has_version(app / "bin" / "kitty", version):
@@ -452,12 +454,14 @@ def kitty_install():
         app.parent.mkdir(parents=True, exist_ok=True)
         tmp = Path(tempfile.mkdtemp(prefix="kitty-install-", dir=app.parent))
         try:
-            run(["tar", "-C", str(tmp), "-xJof", str(txz)])
+            new = tmp / "kitty.app"
+            new.mkdir()
+            run(["tar", "-C", str(new), "-xJof", str(txz)])
             if app.is_symlink() or app.is_file():
                 app.unlink()
             elif app.exists():
                 shutil.rmtree(app)
-            tmp.rename(app)
+            new.rename(app)
         finally:
             if tmp.exists():
                 shutil.rmtree(tmp)
