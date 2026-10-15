@@ -94,8 +94,24 @@ alias autoremove='sudo apt autoclean && sudo apt autoremove'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# Change cursor shape for different vi modes. These zle widgets are set up
+# before the plugins below, so zsh-syntax-highlighting can wrap them.
+function zle-keymap-select {
+  if [[ $KEYMAP == vicmd ]] || [[ $1 = 'block' ]]; then
+    echo -ne '\e[1 q'
+  elif [[ $KEYMAP == main ]] || [[ $KEYMAP == viins ]] || [[ $KEYMAP = '' ]] || [[ $1 = 'beam' ]]; then
+    echo -ne '\e[5 q'
+  fi
+}
+zle -N zle-keymap-select
+
+# Start with beam shape cursor on zsh startup and after every command.
+zle-line-init() { zle-keymap-select 'beam'}
+zle -N zle-line-init
+
 # Plugins — guard each source so a missing package doesn't kill the shell.
-# zsh-syntax-highlighting goes last, as its docs require.
+# zsh-syntax-highlighting goes after every other plugin and zle widget, as its
+# docs require (starship's init below only wraps zle-keymap-select again).
 [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ] \
   && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 [ -f /usr/share/zsh-sudo/sudo.plugin.zsh ] \
@@ -130,20 +146,6 @@ bindkey -s "^[Om" "-"
 bindkey -s "^[OM" "^M"
 bindkey -s "^[Oj" "*"
 bindkey -s "^[Oo" "/"
-
-# Change cursor shape for different vi modes.
-function zle-keymap-select {
-  if [[ $KEYMAP == vicmd ]] || [[ $1 = 'block' ]]; then
-    echo -ne '\e[1 q'
-  elif [[ $KEYMAP == main ]] || [[ $KEYMAP == viins ]] || [[ $KEYMAP = '' ]] || [[ $1 = 'beam' ]]; then
-    echo -ne '\e[5 q'
-  fi
-}
-zle -N zle-keymap-select
- 
-# Start with beam shape cursor on zsh startup and after every command.
-zle-line-init() { zle-keymap-select 'beam'}
-zle -N zle-line-init
 
 # Your own additions (PATH, exports, aliases...) go in ~/.zshrc.local:
 # reinstalling or switching theme never overwrites that file.
