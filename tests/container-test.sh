@@ -4,7 +4,7 @@
 # Usage: tests/container-test.sh [-i IMAGE] [-r REPO] [-u OLD_REPO] [-- INSTALLER_ARGS...]
 #   -i IMAGE  docker image (default: linuxmintd/mint22.3-amd64; ubuntu:24.04 works too)
 #   -r REPO   repo to test (default: this script's repo); tracked + untracked,
-#             non-ignored files are copied in (not Hack.zip, nvim-*.appimage...)
+#             non-ignored files are copied in (not Hack.zip or other downloads)
 #   -u OLD_REPO  upgrade test: first install OLD_REPO (e.g. a git worktree of an
 #             older commit) as run 0, then swap its files for REPO's, keeping
 #             what it downloaded, like a `git pull`. INSTALLER_ARGS must work

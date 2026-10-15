@@ -155,9 +155,9 @@ bash tools/desktop/set-badges.sh 11 black
 
 The installation script performs the following tasks:
 
-* **Kitty installation & configuration** — Sets up the terminal with the theme you pick (Classic or Moonfly) and keyboard shortcuts.
-* **Starship + ZSH setup** — Installs a fast, customizable shell prompt (matching your theme) with helpful plugins.
-* **Neovim (NvChad)** — Installs Neovim (pinned stable release, in `/opt/nvim`) with the NvChad starter config, plus what it needs on first launch (C compiler for treesitter, `ripgrep`, clipboard tools for X11 and Wayland).
+* **Kitty installation & configuration** — Installs kitty's official release (pinned version, in `~/.local/kitty.app`, like kitty's own installer) and sets it up with the theme you pick (Classic or Moonfly) and keyboard shortcuts.
+* **Starship + ZSH setup** — Installs a fast, customizable shell prompt (pinned release, in `/usr/local/bin`, matching your theme) with helpful plugins.
+* **Neovim (NvChad)** — Installs Neovim (pinned stable release, the official `nvim-linux-x86_64.tar.gz` in `/opt/nvim`, linked as `/usr/local/bin/nvim`) with the NvChad starter config, plus what it needs on first launch (C compiler for treesitter, `ripgrep`, clipboard tools for X11 and Wayland).
 * **FZF** — Adds fuzzy finding for commands, files, and history.
 * **Plugins & utilities** — Installs `zsh-autosuggestions`, `zsh-syntax-highlighting`, `bat`, `lsd`, and more.
 * **Moonfly desktop (optional)** — Themes the Cinnamon desktop to match the Moonfly terminal.
@@ -174,15 +174,30 @@ Everything is set up for both your user and `root`, so `sudo -s` gets the same s
 * **PATH and your own settings:** zsh keeps the PATH from your desktop session and `~/.profile` (login shells/SSH too, via `~/.zprofile`), always includes `~/.local/bin`, `~/bin` and `~/.cargo/bin`, and loads `nvm` if you have it. Put your own exports, PATH entries and aliases in `~/.zshrc.local` — reinstalling or switching theme never overwrites it, and lines other installers appended to an older Auto-Kitty `~/.zshrc` are moved there automatically.
 * `zsh` doesn't read `~/.bashrc`. If yours sets up tools like `pyenv`, `conda` or `sdkman`, the installer lists those lines at the end so you can copy them to `~/.zshrc.local` (or just re-run that tool's installer, which will detect zsh).
 * If the system is still installing updates in the background (common right after a fresh Mint install), the installer waits for apt to be free instead of failing.
+* **Pinned, verified downloads:** kitty, Starship, Neovim and Hack Nerd Font are downloaded from their official GitHub releases at the exact versions listed in `PINNED` at the top of `main.py`, and each file's SHA-256 is checked before it is used. A file that doesn't match is deleted and the installer stops. fzf is cloned at its pinned release tag, and the commit is checked (its install script then fetches the fzf binary of that same version). Nothing is piped from `curl` into `sh`. See [Updating pinned versions](#updating-pinned-versions).
 * `bat` and `lsd` are installed from the bundled `.deb` files only when the system doesn't already have the same or a newer version.
 * The installer registers kitty's `xterm-kitty` terminfo system-wide (via `tic`) so tmux, ssh-to-self, and `less` work without "unknown terminal type" errors. The `.zshrc` also exports `TERMINFO_DIRS` as a fallback.
-* Hack Nerd Font is downloaded and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
+* Hack Nerd Font is downloaded (and checked, see above) and installed automatically; the installer aborts if `fc-list` doesn't see it afterward (so you don't end up with prompt glyphs rendering as boxes).
 * Any phase failure now aborts the installer immediately with a clear message naming the failed step (no more silent partial installs).
-* Re-running the script is safe — it backs up configs that changed (unchanged ones aren't backed up again), skips already-installed fonts, and reuses existing clones.
+* Re-running the script is safe — it backs up configs that changed (unchanged ones aren't backed up again), skips already-installed fonts and tools that are already at the pinned version, reuses verified downloads kept in the repo folder, and reuses existing clones.
 * The chosen theme is saved in `~/.config/auto-kitty/theme`.
 * Don't run it with `sudo`: it would install everything for `root` instead of you, so it refuses to start.
 * **kitty doesn't open in a virtual machine?** kitty needs OpenGL 3.3. Enable 3D acceleration in the VM settings (VirtualBox: Display → Enable 3D Acceleration).
 * If `nvim` shows deprecation warnings on first launch (e.g. `vim.lsp.get_active_clients` was removed in Neovim 0.12), run `:Lazy sync` inside Neovim once — NvChad's starter tracks upstream Neovim releases but the first run after a major version bump can occasionally lag a release behind.
+
+
+
+## Updating pinned versions
+
+kitty, Starship, Neovim, Hack Nerd Font and fzf are pinned in the `PINNED` table at the top of `main.py` (version, URL and SHA-256 per architecture; fzf has a tag and commit instead). The NvChad starter config and the optional Moonfly desktop's Colloid/Papirus themes are still cloned from their latest commit. To move to newer releases:
+
+```bash
+python3 scripts/update-pins.py --dry-run      # show what would change
+python3 scripts/update-pins.py                # update every tool in main.py
+python3 scripts/update-pins.py nvim fzf       # or just some of them
+```
+
+For each tool it follows the project's `releases/latest` page on GitHub to the newest tag, downloads the new files, computes their SHA-256, compares it with the checksum file the release publishes when there is one (`<file>.sha256` for Starship, `SHA-256.txt` for Nerd Fonts), rewrites the entry in `main.py` and prints the diff. It doesn't commit anything: check the diff (for tools without a checksum file, compare the hash with the one GitHub shows next to the file on the release page), run the installer, then commit. It only needs Python 3 and `git`, no GitHub API token.
 
 
 

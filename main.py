@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import os
 import platform
 import pwd
@@ -7,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -38,6 +40,41 @@ THEMES = {
 
 # Filled in by the menu / CLI flags before the install phases run.
 CHOICE = {"theme": "classic", "desktop": False}
+
+# Every third-party download, pinned to an exact release and checked with
+# SHA-256 before use (see download_verified). Assets are keyed by machine
+# ("any" = same file everywhere); preflight() only allows x86_64 for now, so
+# supporting arm64 means adding "aarch64" entries. Bump them with
+# scripts/update-pins.py, never by hand-editing a hash you didn't check.
+ARCH = "x86_64"
+PINNED = {
+    "kitty": {
+        "version": "v0.49.2",
+        "x86_64": {"url": "https://github.com/kovidgoyal/kitty/releases/download/v0.49.2/kitty-0.49.2-x86_64.txz",
+                   "sha256": "d573618b911e9c461bd421b96c13c74c7f1cb2f1ac9c327818d4ff84366cf5c6"},
+    },
+    "starship": {
+        "version": "v1.26.0",
+        "x86_64": {"url": "https://github.com/starship/starship/releases/download/v1.26.0/starship-x86_64-unknown-linux-musl.tar.gz",
+                   "sha256": "b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaadf3"},
+    },
+    "nvim": {
+        "version": "v0.12.6",
+        "x86_64": {"url": "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-linux-x86_64.tar.gz",
+                   "sha256": "474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87"},
+    },
+    "hack-nerd-font": {
+        "version": "v3.5.1",
+        "any": {"url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.zip",
+                "sha256": "fa24da7de7cefe7766614d27762570b20453c852fc1d5b657111666df9a5e449"},
+    },
+    # Cloned, not downloaded: the tag's commit is checked after checkout.
+    "fzf": {
+        "version": "v0.74.5",
+        "repo": "https://github.com/junegunn/fzf",
+        "commit": "c0a193e031f01fb50bf6f7be4381990a3753f7cf",
+    },
+}
 
 
 """APP LOGO"""
@@ -119,17 +156,93 @@ def run(cmd, *, shell=False, check=True, cwd=None, env=None):
 APT = ["sudo", "apt-get", "-o", "DPkg::Lock::Timeout=600"]
 
 
-def run_pipe(script):
-    """Run a `curl ... | sh` style pipeline; pipefail so a failed download aborts."""
-    return run(["bash", "-o", "pipefail", "-c", script])
-
-
 def download(url, dest: Path):
     """Download to a .part file first so an interrupted run never leaves a
     truncated file that later runs would treat as already downloaded."""
     part = dest.with_name(dest.name + ".part")
     run(["curl", "-fL", "--retry", "3", "-o", str(part), url])
     part.replace(dest)
+
+
+def sha256_of(path: Path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def download_verified(name):
+    """Download PINNED[name]'s asset into the repo dir and check its SHA-256.
+    A cached copy is reused only if its hash matches; a bad download is
+    deleted and the installer stops instead of installing it."""
+    entry = PINNED[name]
+    asset = entry.get(ARCH) or entry["any"]
+    url, want = asset["url"], asset["sha256"]
+    dest = REPO / url.rsplit("/", 1)[1]
+    # Versioned file names (bat-v0.26.1-...) leave older pins behind; drop them.
+    ver = entry["version"].lstrip("v")
+    if ver in dest.name:
+        for stale in REPO.glob(dest.name.replace(ver, "*")):
+            if stale != dest:
+                stale.unlink()
+    if dest.exists():
+        if sha256_of(dest) == want:
+            print(f"  {dest.name} already downloaded (SHA-256 OK).")
+            return dest
+        dest.unlink()   # an older version under the same name, or corrupted
+    download(url, dest)
+    got = sha256_of(dest)
+    if got != want:
+        dest.unlink()
+        sys.exit(f"ERROR: SHA-256 mismatch for {url}\n"
+                 f"       expected {want}\n"
+                 f"       got      {got}\n"
+                 f"       The file was deleted and nothing was installed from it. Try again later;\n"
+                 f"       if it keeps happening, the download was altered or the pin in main.py is wrong.")
+    green(); print(f"  {dest.name}: SHA-256 OK"); white()
+    return dest
+
+
+def has_version(binary, version):
+    """True if `binary --version` runs and its first line mentions version."""
+    try:
+        res = subprocess.run([str(binary), "--version"], capture_output=True,
+                             text=True, check=False, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    first = (res.stdout.splitlines() or [""])[0]
+    return version.lstrip("v") in (t.lstrip("v") for t in first.split())
+
+
+def install_release_binary(name):
+    """Install a pinned single-binary release tarball (starship) to
+    /usr/local/bin, with its man page and zsh completion when it ships them.
+    /usr/local/bin comes before /usr/bin in PATH and sudo's secure_path, so an
+    older apt/dpkg copy doesn't shadow it."""
+    version = PINNED[name]["version"]
+    dest = Path("/usr/local/bin") / name
+    if has_version(dest, version):
+        print(f"  {name} {version} already installed, skipping.")
+        return
+    archive = download_verified(name)
+    with tempfile.TemporaryDirectory(prefix=f"akw-{name}-") as tmp:
+        run(["tar", "-xzf", str(archive), "-C", tmp, "--no-same-owner"])
+        found = [p for p in Path(tmp).rglob(name) if p.is_file()]
+        if not found:
+            sys.exit(f"ERROR: {archive.name} has no '{name}' binary.")
+        top = found[0].parent
+        run(["sudo", "install", "-m", "755", str(found[0]), str(dest)])
+        man = top / f"{name}.1"
+        if man.is_file():
+            run(["sudo", "install", "-D", "-m", "644", str(man), f"/usr/local/share/man/man1/{name}.1"])
+        for comp in (top / "autocomplete" / f"_{name}", top / "autocomplete" / f"{name}.zsh"):
+            if comp.is_file():
+                run(["sudo", "install", "-D", "-m", "644", str(comp),
+                     f"/usr/local/share/zsh/site-functions/_{name}"])
+                break
+    if not has_version(dest, version):
+        sys.exit(f"ERROR: {dest} --version doesn't report {version} after installing it.")
 
 
 def sudo_keepalive():
@@ -276,7 +389,7 @@ def preflight():
     if shutil.which("apt") is None:
         sys.exit("ERROR: this installer requires apt (Debian/Ubuntu/Mint).")
     if platform.machine() not in ("x86_64", "amd64"):
-        sys.exit(f"ERROR: bundled .deb packages are amd64-only; detected {platform.machine()}.")
+        sys.exit(f"ERROR: the pinned downloads (PINNED in main.py) are x86_64-only; detected {platform.machine()}.")
     if shutil.which("sudo") is None:
         sys.exit("ERROR: sudo is required.")
     # Warm up sudo so subsequent steps don't each prompt for a password.
@@ -299,6 +412,7 @@ def apt_prereqs():
     run(APT + [
         "install", "-y",
         "curl", "wget", "unzip", "git", "zsh",
+        "xz-utils",          # kitty's release is a .txz
         "zsh-autosuggestions", "zsh-syntax-highlighting",
         "ncurses-bin",       # provides `tic`
         "fontconfig",        # fc-cache / fc-list for the Nerd Font check
@@ -316,9 +430,29 @@ def apt_prereqs():
 
 def kitty_install():
     print_step("\n[+] Installing Kitty...\n")
-    # Official kitty installer (apt version is too old). launch=n: by default
-    # it opens a kitty window at the end, before the config is in place.
-    run_pipe("curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n")
+    # Official kitty binary release (apt version is too old), installed into
+    # ~/.local/kitty.app the same way the official installer.sh does it:
+    # extract to a temp dir, delete the old kitty.app, move the new one in.
+    app = HOME / ".local" / "kitty.app"
+    version = PINNED["kitty"]["version"]
+    if has_version(app / "bin" / "kitty", version):
+        print(f"  kitty {version} already installed, skipping.")
+    else:
+        txz = download_verified("kitty")
+        app.parent.mkdir(parents=True, exist_ok=True)
+        tmp = Path(tempfile.mkdtemp(prefix="kitty-install-", dir=app.parent))
+        try:
+            run(["tar", "-C", str(tmp), "-xJof", str(txz)])
+            if app.is_symlink() or app.is_file():
+                app.unlink()
+            elif app.exists():
+                shutil.rmtree(app)
+            tmp.rename(app)
+        finally:
+            if tmp.exists():
+                shutil.rmtree(tmp)
+        if not has_version(app / "bin" / "kitty", version):
+            sys.exit(f"ERROR: {app}/bin/kitty --version doesn't report {version} after installing it.")
 
     (HOME / ".local" / "bin").mkdir(parents=True, exist_ok=True)
     for binname in ("kitty", "kitten"):
@@ -522,9 +656,7 @@ def hnf():
         print("  Hack Nerd Font already installed, skipping.")
         return
 
-    zip_path = REPO / "Hack.zip"
-    if not zip_path.exists():
-        download("https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Hack.zip", zip_path)
+    zip_path = download_verified("hack-nerd-font")
 
     extract_dir = REPO / "Hack-extracted"
     if extract_dir.exists():
@@ -545,8 +677,8 @@ def hnf():
 
 def starship():
     print_step("\n[+] Installing Starship...\n")
-    # Official installer; --yes makes it non-interactive.
-    run_pipe("curl -fsSL https://starship.rs/install.sh | sh -s -- --yes")
+    # Pinned release binary, in /usr/local/bin like the official install.sh.
+    install_release_binary("starship")
 
     install_file(theme_file("starship.toml"), HOME / ".config" / "starship.toml")
 
@@ -560,8 +692,10 @@ def starship():
 
 def fzf():
     print_step("\n[+] Configuring FZF...\n")
-    # Clone the upstream repo; its install script downloads a current fzf
-    # binary and writes the keybindings + completion, non-interactively.
+    # Clone the upstream repo at the pinned release tag; its install script
+    # downloads the fzf binary of that same version and writes the
+    # keybindings + completion, non-interactively.
+    tag, commit = PINNED["fzf"]["version"], PINNED["fzf"]["commit"]
     for target_str, sudo in ((str(HOME / ".fzf"), False), ("/root/.fzf", True)):
         target = Path(target_str)
         prefix = ["sudo"] if sudo else []
@@ -571,13 +705,20 @@ def fzf():
         exists = subprocess.run(
             prefix + ["test", "-e", str(target)], check=False
         ).returncode == 0
+        git = prefix + ["git", "-c", "advice.detachedHead=false"]
         if exists:
-            run(prefix + ["git", "-C", str(target), "pull", "--ff-only"], check=False)
+            # Older installs cloned master; move them to the pinned tag.
+            run(git + ["-C", str(target), "fetch", "--depth=1", "origin", "tag", tag])
+            run(git + ["-C", str(target), "checkout", "-q", tag])
         else:
-            run(prefix + [
-                "git", "clone", "--depth=1",
-                "https://github.com/junegunn/fzf.git", str(target),
+            run(git + [
+                "clone", "--depth=1", "--branch", tag,
+                PINNED["fzf"]["repo"] + ".git", str(target),
             ])
+        head = subprocess.run(prefix + ["git", "-C", str(target), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        if head != commit:
+            sys.exit(f"ERROR: {target} is at {head}, but fzf {tag} is pinned to {commit}.")
         # HOME set explicitly: the install script writes $HOME/.fzf.zsh, and
         # not every sudo (e.g. sudo-rs) resets HOME the same way.
         run(prefix + [
@@ -643,33 +784,37 @@ def nvim():
     for p in ["/root/.config/nvim", "/root/.local/share/nvim", "/root/.cache/nvim"]:
         run(["sudo", "rm", "-rf", p])
 
-    # Pin to current stable (October 2026). Bump deliberately — random
-    # rebuilds shouldn't slide in via "latest".
-    NVIM_VERSION = "v0.12.5"
-    appimage = REPO / f"nvim-{NVIM_VERSION}-linux-x86_64.appimage"
-    # Clean stale downloads from previous versions so disk doesn't grow.
+    # Official release tarball, pinned in PINNED (bump it with
+    # scripts/update-pins.py), so random rebuilds can't slide in via "latest".
+    # Clean the AppImage downloads older versions of this installer left.
     for stale in REPO.glob("nvim-*.appimage"):
-        if stale != appimage:
-            stale.unlink()
-    if (REPO / "nvim-linux-x86_64.appimage").exists():
-        (REPO / "nvim-linux-x86_64.appimage").unlink()
-    if not appimage.exists():
-        download(f"https://github.com/neovim/neovim/releases/download/{NVIM_VERSION}/nvim-linux-x86_64.appimage",
-                 appimage)
-    run(["chmod", "u+x", str(appimage)])
+        stale.unlink()
+    if (REPO / "squashfs-root").exists():
+        shutil.rmtree(REPO / "squashfs-root")
 
-    sq = REPO / "squashfs-root"
-    if sq.exists():
-        shutil.rmtree(sq)
-    run([str(appimage), "--appimage-extract"], cwd=str(REPO))
-
-    # Install to /opt/nvim and symlink AppRun -> /usr/local/bin/nvim.
+    # Install to /opt/nvim and symlink bin/nvim -> /usr/local/bin/nvim.
+    # /opt/nvim may hold an extracted AppImage from an older version; the new
+    # tree is extracted and checked first, then swapped in.
     # Old installer left a directory at /usr/bin/nvim — clean that up too, but
     # only if it is that directory (a real /usr/bin/nvim belongs to apt's neovim).
-    run(["sudo", "rm", "-rf", "/opt/nvim", "/usr/local/bin/nvim"])
-    run(["sudo", "sh", "-c", "[ -d /usr/bin/nvim ] && rm -rf /usr/bin/nvim || true"])
-    run(["sudo", "mv", str(sq), "/opt/nvim"])
-    run(["sudo", "ln", "-sf", "/opt/nvim/AppRun", "/usr/local/bin/nvim"])
+    version = PINNED["nvim"]["version"]
+    if (has_version("/opt/nvim/bin/nvim", version)
+            and os.path.realpath("/usr/local/bin/nvim") == "/opt/nvim/bin/nvim"):
+        print(f"  Neovim {version} already installed in /opt/nvim, skipping.")
+    else:
+        tarball = download_verified("nvim")
+        with tempfile.TemporaryDirectory(prefix="akw-nvim-") as tmp:
+            new = Path(tmp) / "nvim"
+            new.mkdir()
+            run(["tar", "-xzf", str(tarball), "-C", str(new), "--no-same-owner", "--strip-components=1"])
+            if not has_version(new / "bin" / "nvim", version):
+                sys.exit(f"ERROR: the Neovim {version} release doesn't run here ({new}/bin/nvim --version failed).")
+            run(["sudo", "rm", "-rf", "/opt/nvim", "/usr/local/bin/nvim"])
+            run(["sudo", "sh", "-c", "[ -d /usr/bin/nvim ] && rm -rf /usr/bin/nvim || true"])
+            run(["sudo", "mkdir", "-p", "/opt"])
+            run(["sudo", "mv", str(new), "/opt/nvim"])
+            run(["sudo", "chown", "-R", "root:root", "/opt/nvim"])
+        run(["sudo", "ln", "-sf", "/opt/nvim/bin/nvim", "/usr/local/bin/nvim"])
 
     # NvChad starter config (for user and root)
     run(["git", "clone", NVCHAD_STARTER, str(nvim_cfg)])

@@ -6,6 +6,9 @@ __pycache__/
 # from inside the repo). None of these should ever be committed.
 Hack.zip
 Hack-extracted/
+kitty-*.txz
+nvim-linux-*.tar.gz
+*-unknown-linux-musl.tar.gz
 nvim-*.appimage
 squashfs-root/
 /sudo.plugin.zsh
