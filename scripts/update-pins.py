@@ -76,7 +76,7 @@ def published_sha256(url):
 def repo_of(entry):
     if "repo" in entry:
         return entry["repo"]
-    for key, asset in entry.items():
+    for asset in entry.values():
         if isinstance(asset, dict) and "url" in asset:
             m = re.match(r"(https://github\.com/[^/]+/[^/]+)/releases/download/", asset["url"])
             if m:

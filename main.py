@@ -564,9 +564,9 @@ def keep_zshrc_extras(old_rc: Path):
     if not old_rc.exists():
         return
     lines = old_rc.read_text(errors="replace").splitlines()
-    ends = [i for i, l in enumerate(lines)
-            if "starship init zsh" in l or l.startswith("zle-line-init() {")]
-    if not ends or not any(l.startswith("# Manual aliases") for l in lines):
+    ends = [i for i, line in enumerate(lines)
+            if "starship init zsh" in line or line.startswith("zle-line-init() {")]
+    if not ends or not any(line.startswith("# Manual aliases") for line in lines):
         END_NOTES.append("Tu ~/.zshrc anterior no era de Auto-Kitty: está guardado como ~/.zshrc.backup.*\n"
                          "    Si tenías PATH, exports o alias propios ahí, cópialos a ~/.zshrc.local")
         return
@@ -603,9 +603,9 @@ def warn_about_bashrc():
     pat = re.compile(r"PATH=|\b(conda|pyenv|rbenv|sdkman|bun|deno|pnpm|volta|asdf|mise|fnm|direnv)\b")
     local = HOME / ".zshrc.local"
     done = local.read_text() if local.exists() else ""
-    hits = [l.strip() for l in rc.read_text(errors="replace").splitlines()
-            if pat.search(l) and not l.lstrip().startswith("#")
-            and "nvm" not in l.lower() and l.strip() not in done]
+    hits = [line.strip() for line in rc.read_text(errors="replace").splitlines()
+            if pat.search(line) and not line.lstrip().startswith("#")
+            and "nvm" not in line.lower() and line.strip() not in done]
     if hits:
         END_NOTES.append("Tu ~/.bashrc configura cosas que zsh no lee. Si las usas, cópialas a ~/.zshrc.local\n"
                          "    (o vuelve a ejecutar su instalador, que ya detectará zsh):\n"
@@ -746,7 +746,7 @@ def is_untouched_nvchad_starter(d: Path):
         return False
     # Files marked assume-unchanged/skip-worktree hide their edits from status.
     tracked = git("ls-files", "-v")
-    if tracked is None or any(not l.startswith("H ") for l in tracked.splitlines()):
+    if tracked is None or any(not line.startswith("H ") for line in tracked.splitlines()):
         return False
     if status:
         # The theme value must be one we set, not the user's own choice.
@@ -856,7 +856,8 @@ def set_default_terminal():
     lines = terms.read_text().splitlines() if terms.exists() else []
     if not lines or lines[0].strip() != "kitty.desktop":
         terms.parent.mkdir(parents=True, exist_ok=True)
-        terms.write_text("\n".join(["kitty.desktop"] + [l for l in lines if l.strip() != "kitty.desktop"]) + "\n")
+        others = [line for line in lines if line.strip() != "kitty.desktop"]
+        terms.write_text("\n".join(["kitty.desktop"] + others) + "\n")
 
     # Debian-wide alternative — covers scripts/IDEs that hard-code
     # /usr/bin/x-terminal-emulator. Priority 50 beats gnome-terminal's 40;
@@ -942,7 +943,8 @@ def print_end_notes():
     print(f"        python3 {shlex.quote(str(REPO / 'main.py'))} --switch-theme classic     (o moonfly)")
     if CHOICE["desktop"]:
         print("\n[!] Escritorio Moonfly aplicado. Tamaño/estilo de los contadores de la barra:")
-        print(f"        bash {shlex.quote(str(DESKTOP_DIR / 'set-badges.sh'))} 11 black     (tamaño 8-14, black o colored)")
+        print(f"        bash {shlex.quote(str(DESKTOP_DIR / 'set-badges.sh'))} 11 black"
+              "     (tamaño 8-14, black o colored)")
         print("    Para deshacerlo, usa el comando 'To undo' que se mostró arriba.")
     white()
 
@@ -1070,7 +1072,7 @@ def clean_kitty_conf(path):
         out.append(line)
     if "include color.ini" not in out:
         out.insert(0, "include color.ini")
-    if not any(l.startswith("scrollback_lines") for l in out):
+    if not any(line.startswith("scrollback_lines") for line in out):
         out.append("scrollback_lines 10000")
     text = re.sub(r"\n{4,}", "\n\n\n", "\n".join(out) + "\n")
     path.write_text(text)
@@ -1154,7 +1156,8 @@ def parse_args():
 
 """MAIN PROGRAM"""
 if __name__ == '__main__':
-    if sys.version_info < (3, 9):
+    # Kept on purpose for older interpreters, even though ruff assumes 3.9+.
+    if sys.version_info < (3, 9):  # noqa: UP036
         sys.exit("ERROR: Python 3.9 or newer is required.")
     if os.geteuid() == 0:
         sys.exit("ERROR: no lo ejecutes con sudo ni como root; usa: python3 main.py\n"

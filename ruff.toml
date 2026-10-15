@@ -1,0 +1,15 @@
+# `ruff check` settings (CI runs it, see .github/workflows/ci.yml).
+# Lint only: the code isn't run through `ruff format`.
+target-version = "py39"   # main.py supports Python 3.9+
+line-length = 120
+
+[lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "B",        # flake8-bugbear
+    "UP",       # pyupgrade
+]
+ignore = [
+    "E701", "E702",   # `yellow(); print(...)` one-liners are the house style
+]

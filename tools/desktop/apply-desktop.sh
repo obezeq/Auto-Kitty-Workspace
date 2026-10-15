@@ -21,6 +21,7 @@ if [ "$(id -u)" -eq 0 ]; then
   echo "Run this as your normal user (not with sudo). It will ask for your password when needed."; exit 1
 fi
 
+# shellcheck disable=SC2012  # our own timestamped dirs; ls sorts them, so this is the oldest
 EXISTING="$(ls -d "$HOME"/theme-backup-desktop-* 2>/dev/null | head -1)"
 if [ -n "$EXISTING" ] && [ -f "$EXISTING/restore.sh" ]; then
   BACKUP="$EXISTING"
@@ -37,6 +38,7 @@ else
                "org.cinnamon.theme name" \
                "org.cinnamon.desktop.interface icon-theme"; do
       # %q keeps values with spaces/quotes intact when restore.sh runs
+      # shellcheck disable=SC2086  # $key is "schema key": split into two arguments on purpose
       printf 'gsettings set %s %q\n' "$key" "$(gsettings get $key)"
     done
     echo "rm -rf \"\$HOME/.config/gtk-4.0\""
