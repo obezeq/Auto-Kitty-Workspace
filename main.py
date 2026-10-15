@@ -159,10 +159,17 @@ def print_step(text):
 
 
 def backup_path(p: Path):
-    """Move existing file/dir aside with a timestamped suffix; no-op if absent."""
-    if not p.exists():
+    """Move existing file/dir aside with a timestamped suffix; no-op if absent.
+    lexists: a dangling symlink is moved aside too, instead of written through."""
+    if not os.path.lexists(p):
         return None
-    backup = p.with_name(f"{p.name}.backup.{int(time.time())}")
+    stamp = int(time.time())
+    backup, n = p.with_name(f"{p.name}.backup.{stamp}"), 1
+    # Two backups of the same path within one second must not collide:
+    # moving a dir onto an existing backup dir would nest it inside.
+    while os.path.lexists(backup):
+        n += 1
+        backup = p.with_name(f"{p.name}.backup.{stamp}-{n}")
     shutil.move(str(p), str(backup))
     yellow(); print(f"  Backed up {p} -> {backup}"); white()
     return backup
