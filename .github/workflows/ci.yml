@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Only main: a PR branch's pushes are already tested by pull_request.
   push:
+    branches: [main]
   pull_request:
 
 permissions:

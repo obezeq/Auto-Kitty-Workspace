@@ -205,10 +205,12 @@ For each tool it follows the project's `releases/latest` page on GitHub to the n
 
 ## Development / CI
 
-Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+Every push to `main` and every pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 * **lint** — `ruff check` (rules in `ruff.toml`), `python3 -m py_compile` on every `.py`, and `shellcheck` on every `.sh`.
 * **install-test** — a full install in a throwaway Docker container, on Linux Mint 22.3 and Ubuntu 24.04.
+
+The actions it uses are pinned to commit SHAs; Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) opens a pull request each week when one of them has a new release.
 
 Both only need Docker, so you can run the same checks locally before pushing:
 
