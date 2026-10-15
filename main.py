@@ -281,19 +281,27 @@ def print_step(text):
     white()
 
 
-def backup_path(p: Path):
+def backup_path(p: Path, sudo=False):
     """Move existing file/dir aside with a timestamped suffix; no-op if absent.
-    lexists: a dangling symlink is moved aside too, instead of written through."""
-    if not os.path.lexists(p):
+    lexists: a dangling symlink is moved aside too, instead of written through.
+    sudo=True for paths only root can see (/root/...)."""
+    def lexists(q):
+        if not sudo:
+            return os.path.lexists(q)
+        return subprocess.run(["sudo", "test", "-e", str(q), "-o", "-L", str(q)], check=False).returncode == 0
+    if not lexists(p):
         return None
     stamp = int(time.time())
     backup, n = p.with_name(f"{p.name}.backup.{stamp}"), 1
     # Two backups of the same path within one second must not collide:
     # moving a dir onto an existing backup dir would nest it inside.
-    while os.path.lexists(backup):
+    while lexists(backup):
         n += 1
         backup = p.with_name(f"{p.name}.backup.{stamp}-{n}")
-    shutil.move(str(p), str(backup))
+    if sudo:
+        run(["sudo", "mv", "-T", str(p), str(backup)])
+    else:
+        shutil.move(str(p), str(backup))
     yellow(); print(f"  Backed up {p} -> {backup}"); white()
     return backup
 
@@ -698,13 +706,21 @@ def fzf():
     for target_str, sudo in ((str(HOME / ".fzf"), False), ("/root/.fzf", True)):
         target = Path(target_str)
         prefix = ["sudo"] if sudo else []
-        # Use `test -e` (via sudo for root paths) instead of Path.exists():
+        # Use `test` (via sudo for root paths) instead of Path.exists():
         # Python 3.12+ raises PermissionError on stat() of unreadable paths
         # like /root/* when running as a non-root user.
         exists = subprocess.run(
-            prefix + ["test", "-e", str(target)], check=False
+            prefix + ["test", "-e", str(target), "-o", "-L", str(target)], check=False
         ).returncode == 0
         git = prefix + ["git", "-c", "advice.detachedHead=false"]
+        if exists and not is_clean_fzf_clone(target, prefix):
+            # Not ours to update in place (own edits, not a clone...): keep it
+            # as a backup and start over from a fresh clone.
+            yellow()
+            print(f"  [!] {target} no es un clon de fzf sin cambios: se guarda una copia y se clona de nuevo.")
+            white()
+            backup_path(target, sudo=sudo)
+            exists = False
         if exists:
             # Older installs cloned master; move them to the pinned tag.
             run(git + ["-C", str(target), "fetch", "--depth=1", "origin", "tag", tag])
@@ -726,6 +742,21 @@ def fzf():
             "--key-bindings", "--completion",
             "--no-update-rc", "--no-bash", "--no-fish",
         ])
+
+
+def is_clean_fzf_clone(d: Path, prefix):
+    """True if d is the top of a git clone of fzf with no edits to tracked
+    files, so checking out another tag in it loses nothing (untracked files
+    stay where they are). prefix: ["sudo"] for /root/.fzf."""
+    def git(*args):
+        res = subprocess.run(prefix + ["git", "-C", str(d), *args],
+                             capture_output=True, text=True, check=False)
+        return res.stdout.rstrip("\n") if res.returncode == 0 else None
+    repo = PINNED["fzf"]["repo"]
+    # --show-prefix is "" only at the top of a work tree (not in a ~ dotfiles repo).
+    return (git("rev-parse", "--show-prefix") == ""
+            and git("remote", "get-url", "origin") in (repo, repo + ".git")
+            and git("status", "--porcelain", "--untracked-files=no") == "")
 
 
 def is_untouched_nvchad_starter(d: Path):
