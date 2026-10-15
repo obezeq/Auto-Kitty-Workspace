@@ -2,7 +2,8 @@
 """Bump the pinned downloads (PINNED in main.py) to the latest releases.
 
 Usage: python3 scripts/update-pins.py [--dry-run] [TOOL ...]
-  TOOL      keys of PINNED (kitty, starship, nvim, hack-nerd-font, fzf); all of them if omitted.
+  TOOL      keys of PINNED (kitty, starship, nvim, bat, lsd, hack-nerd-font,
+            fzf); all of them if omitted.
   --dry-run only print the diff, don't write main.py.
 
 For each tool it follows https://github.com/<owner>/<repo>/releases/latest

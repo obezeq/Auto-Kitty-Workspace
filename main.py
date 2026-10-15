@@ -63,6 +63,16 @@ PINNED = {
         "x86_64": {"url": "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-linux-x86_64.tar.gz",
                    "sha256": "474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87"},
     },
+    "bat": {
+        "version": "v0.26.1",
+        "x86_64": {"url": "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz",
+                   "sha256": "0dcd8ac79732c0d5b136f11f4ee00e581440e16a44eab5b3105b611bbf2cf191"},
+    },
+    "lsd": {
+        "version": "v1.2.0",
+        "x86_64": {"url": "https://github.com/lsd-rs/lsd/releases/download/v1.2.0/lsd-v1.2.0-x86_64-unknown-linux-musl.tar.gz",
+                   "sha256": "77849da1210336534258551a581401ba19ae6b8d7b66a2a1feff148ad41e3814"},
+    },
     "hack-nerd-font": {
         "version": "v3.5.1",
         "any": {"url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.zip",
@@ -216,7 +226,7 @@ def has_version(binary, version):
 
 
 def install_release_binary(name):
-    """Install a pinned single-binary release tarball (starship) to
+    """Install a pinned single-binary release tarball (bat, lsd, starship) to
     /usr/local/bin, with its man page and zsh completion when it ships them.
     /usr/local/bin comes before /usr/bin in PATH and sudo's secure_path, so an
     older apt/dpkg copy doesn't shadow it."""
@@ -618,25 +628,10 @@ def zsh():
     zprofile()
     warn_about_bashrc()
 
-    # Bundled .deb plugins (bat, lsd) — apt install resolves deps, dpkg -i doesn't.
-    # Skip a .deb when the same package is already installed at an equal or
-    # newer version (newer Mint releases may ship one): apt refuses to
-    # downgrade with -y and the whole phase would fail.
-    debs = []
-    for deb in sorted((REPO / "tools" / "zsh" / "plugins").glob("*.deb")):
-        pkg, ver = subprocess.run(["dpkg-deb", "-f", str(deb), "Package", "Version"],
-                                  capture_output=True, text=True, check=True).stdout.split("\n")[:2]
-        pkg, ver = pkg.split(":", 1)[1].strip(), ver.split(":", 1)[1].strip()
-        q = subprocess.run(["dpkg-query", "-W", "-f=${Status}|${Version}", pkg],
-                           capture_output=True, text=True, check=False).stdout
-        installed = q.split("|")[1] if q.startswith("install ok installed|") else ""
-        if installed and subprocess.run(["dpkg", "--compare-versions", installed, "ge", ver],
-                                        check=False).returncode == 0:
-            print(f"  {pkg} {installed} already installed, skipping bundled {ver}.")
-            continue
-        debs.append(str(deb))
-    if debs:
-        run(APT + ["install", "-y"] + debs)
+    # bat and lsd: pinned musl release binaries (static, so they run on any
+    # distro version). Skipped when /usr/local/bin already has that version.
+    for tool in ("bat", "lsd"):
+        install_release_binary(tool)
 
     # ohmyzsh sudo plugin, vendored in tools/zsh/plugins/ (MIT, see the
     # .LICENSE file next to it). Also replaces the copy older versions
