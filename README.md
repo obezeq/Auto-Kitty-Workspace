@@ -66,7 +66,15 @@ python3 main.py --theme moonfly --desktop       # Moonfly terminal + Moonfly des
 python3 main.py --theme moonfly --no-desktop    # Moonfly terminal only
 python3 main.py --keybindings                   # also enable Super+arrow split shortcuts, no question
 python3 main.py --no-keybindings                # don't enable them, no question
+python3 main.py --default-terminal              # make kitty the default terminal, no question
+python3 main.py --no-default-terminal           # leave the default terminal alone, no question
+python3 main.py --theme moonfly --yes           # yes to every yes/no question
+python3 main.py --theme moonfly --yes --no-desktop   # yes to everything except the desktop
 ```
+
+`--yes` (`-y`) answers yes to every yes/no question that you didn't set with its own flag: an explicit `--desktop`/`--no-desktop`, `--keybindings`/`--no-keybindings` or `--default-terminal`/`--no-default-terminal` always wins. It doesn't pick the theme; use `--theme` for that.
+
+Without a terminal to answer (e.g. run from a script with input from `/dev/null`), the theme menu falls back to Classic and every yes/no question is answered **no**, so nothing about your desktop or default terminal changes unless you pass the flags above. `python3 main.py --help` lists all the flags.
 
 **Default terminal:** if you say yes, it sets Cinnamon's terminal setting (used by <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>, the panel and Nemo), `~/.config/xdg-terminals.list`, and the system-wide `x-terminal-emulator`. To undo it:
 

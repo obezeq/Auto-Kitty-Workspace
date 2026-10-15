@@ -844,15 +844,19 @@ def install():
 
 
 """MENU AND THEME SWITCHING"""
-def ask_yes_no(text):
+def ask_yes_no(text, eof_answer=False):
     """Yes/no question shown as (Y/n): Enter means yes. Accepts y/yes/s/si/sí
-    and n/no in any case, ignoring surrounding spaces."""
+    and n/no in any case, ignoring surrounding spaces.
+
+    With no terminal attached (EOF, e.g. stdin from /dev/null) nobody can
+    answer, so return eof_answer: False by default, because every question
+    here changes system settings. Use the CLI flags (or --yes) to say yes."""
     while True:
         try:
             r = input(f"{text} (Y/n): ").strip().lower()
-        except EOFError:          # no terminal attached: take the default
-            print()
-            return True
+        except EOFError:
+            print("y" if eof_answer else "n", "(no terminal)")
+            return eof_answer
         if r in ("", "y", "yes", "s", "si", "sí"):
             return True
         if r in ("n", "no"):
@@ -867,7 +871,11 @@ def choose_theme():
         white(); print(f"  [{i}] {THEMES[key]['name']:<8} {THEMES[key]['desc']}")
     blue()
     while True:
-        r = input(f"\nOpción [1-{len(keys)}] (Enter = 1): ").strip().lower()
+        try:
+            r = input(f"\nOpción [1-{len(keys)}] (Enter = 1): ").strip().lower()
+        except EOFError:          # no terminal attached: same as Enter
+            print(f"\n[i] Sin terminal para responder: se usa {THEMES[keys[0]]['name']} (elige otro con --theme).")
+            return keys[0]
         if r == "":
             return keys[0]
         if r.isdigit() and 1 <= int(r) <= len(keys):
@@ -977,14 +985,28 @@ def switch_theme(theme, desktop_flag):
     white()
 
 
+def flag_or_yes(flag, yes):
+    """Answer for a question with a --x/--no-x flag: an explicit flag always
+    wins; otherwise --yes means yes; None means ask."""
+    return True if flag is None and yes else flag
+
+
 def parse_args():
-    p = argparse.ArgumentParser(description="Auto-Kitty-Workspace installer")
+    p = argparse.ArgumentParser(
+        description="Auto-Kitty-Workspace installer",
+        epilog="Explicit --x / --no-x flags always win over --yes "
+               "(e.g. --yes --no-desktop answers yes to everything except the desktop).")
     p.add_argument("--theme", choices=list(THEMES),
                    help="install this theme without showing the menu")
     p.add_argument("--desktop", action=argparse.BooleanOptionalAction, default=None,
                    help="also apply (or skip) the matching Cinnamon desktop theme (moonfly only)")
     p.add_argument("--keybindings", action=argparse.BooleanOptionalAction, default=None,
                    help="also enable (or skip) the Super+arrow split shortcuts (Cinnamon only)")
+    p.add_argument("--default-terminal", action=argparse.BooleanOptionalAction, default=None,
+                   help="make kitty the system default terminal (or leave it), without asking")
+    p.add_argument("-y", "--yes", action="store_true",
+                   help="answer yes to every yes/no question not set by a flag above "
+                        "(the theme menu still needs --theme to be skipped)")
     p.add_argument("--switch-theme", choices=list(THEMES), metavar="THEME",
                    help="only change the theme of an existing install (classic or moonfly)")
     return p.parse_args()
@@ -1002,19 +1024,23 @@ if __name__ == '__main__':
     print(BANNER)
 
     if args.switch_theme:
-        switch_theme(args.switch_theme, args.desktop)
+        switch_theme(args.switch_theme, flag_or_yes(args.desktop, args.yes))
         sys.exit(0)
 
     CHOICE["theme"] = args.theme or choose_theme()
     if CHOICE["theme"] == "moonfly":
-        CHOICE["desktop"] = decide_desktop(args.desktop)
+        CHOICE["desktop"] = decide_desktop(flag_or_yes(args.desktop, args.yes))
     elif args.desktop:
         yellow(); print("\n[i] --desktop solo aplica al tema moonfly; se ignora."); white()
 
     install()
 
-    blue()
-    if ask_yes_no("\n¿Deseas cambiar la terminal por defecto?"):
+    default_terminal = flag_or_yes(args.default_terminal, args.yes)
+    if default_terminal is None:
+        blue()
+        default_terminal = ask_yes_no("\n¿Deseas cambiar la terminal por defecto?")
+        white()
+    if default_terminal:
         try:
             set_default_terminal()
         except subprocess.CalledProcessError as e:
@@ -1023,7 +1049,7 @@ if __name__ == '__main__':
             print("    El resto de la instalación está bien; puedes elegir kitty en Aplicaciones preferidas.")
             white()
 
-    offer_keybindings(args.keybindings)
+    offer_keybindings(flag_or_yes(args.keybindings, args.yes))
 
     print_end_notes()
     green()
