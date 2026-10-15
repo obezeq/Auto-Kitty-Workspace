@@ -1001,7 +1001,9 @@ def ask_yes_no(text, eof_answer=False):
         try:
             r = input(f"{text} (Y/n): ").strip().lower()
         except EOFError:
-            print("y" if eof_answer else "n", "(no terminal)")
+            # Same language as the question (the Spanish ones start with ¿).
+            note = "(sin terminal)" if text.lstrip().startswith("¿") else "(no terminal)"
+            print("y" if eof_answer else "n", note)
             return eof_answer
         if r in ("", "y", "yes", "s", "si", "sí"):
             return True
