@@ -199,7 +199,7 @@ python3 scripts/update-pins.py                # update every tool in main.py
 python3 scripts/update-pins.py nvim bat       # or just some of them
 ```
 
-For each tool it follows the project's `releases/latest` page on GitHub to the newest tag, downloads the new files, computes their SHA-256, compares it with the checksum file the release publishes when there is one (`<file>.sha256` for Starship, `SHA-256.txt` for Nerd Fonts), rewrites the entry in `main.py` and prints the diff. It doesn't commit anything: check the diff (for tools without a checksum file, compare the hash with the one GitHub shows next to the file on the release page), run the installer, then commit. It only needs Python 3 and `git`, no GitHub API token.
+For each tool it follows the project's `releases/latest` page on GitHub to the newest tag, downloads the new files, computes their SHA-256, compares it with the checksum file the release publishes when there is one (`<file>.sha256` for Starship, `SHA-256.txt` for Nerd Fonts) and with the `sha256:` digest GitHub shows next to each file on the release page (newer releases have one), rewrites the entry in `main.py` and prints the diff. Any mismatch stops it. It doesn't commit anything: check the diff (if it says there was nothing to compare a hash with, compare it yourself with the release page), run the installer, then commit. It only needs Python 3 and `git`, no GitHub API token.
 
 
 

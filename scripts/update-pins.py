@@ -8,8 +8,9 @@ Usage: python3 scripts/update-pins.py [--dry-run] [TOOL ...]
 
 For each tool it follows https://github.com/<owner>/<repo>/releases/latest
 to the newest release tag, downloads every asset of the new version,
-computes its SHA-256 and, when the release publishes checksums
-(<asset>.sha256, shasum.txt, SHA-256.txt), checks the hash against them.
+computes its SHA-256 and checks it against the checksum file the release
+publishes (<asset>.sha256, shasum.txt, SHA-256.txt) and against the sha256
+digest GitHub shows for the asset on the release page, when there are any.
 fzf is a git clone, so it gets the tag's commit (git ls-remote) instead.
 Then it rewrites the entries in main.py and prints the diff. Nothing is
 committed: review the diff, run the installer, and commit it yourself.
@@ -73,6 +74,28 @@ def published_sha256(url):
     return None, None
 
 
+def github_digest(url):
+    """(hash, source) from the "sha256:..." digest GitHub shows next to a
+    release asset (the HTML of releases/expanded_assets/<tag>, no API), or
+    (None, None) when the page or the digest isn't there (older releases)."""
+    m = re.fullmatch(r"https://github\.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^/]+)", url)
+    if not m:
+        return None, None
+    page = f"https://github.com/{m[1]}/releases/expanded_assets/{m[2]}"
+    try:
+        html = fetch(page).decode("utf-8", "replace")
+    except OSError:   # HTTP errors and timeouts too: just no digest to compare
+        return None, None
+    href = f'href="/{m[1]}/releases/download/{m[2]}/{m[3]}"'
+    start = html.find(href)
+    if start < 0:
+        return None, None
+    # Only look up to the next asset, so another file's digest can't match.
+    end = html.find("/releases/download/", start + len(href))
+    d = re.search(r"sha256:([0-9a-f]{64})", html[start:end if end >= 0 else len(html)])
+    return (d[1], page) if d else (None, None)
+
+
 def repo_of(entry):
     if "repo" in entry:
         return entry["repo"]
@@ -123,13 +146,14 @@ def update(text, name, entry):
         url = asset["url"].replace(old.lstrip("v"), new.lstrip("v"))
         print(f"  {arch}: downloading {url}")
         digest = hashlib.sha256(fetch(url)).hexdigest()
-        published, source = published_sha256(url)
-        if published is None:
-            print(f"  {arch}: sha256 {digest} (no published checksum file; compare it with the release page)")
-        elif published != digest:
-            sys.exit(f"ERROR: {url}: computed {digest}, but {source} says {published}")
+        checks = [c for c in (published_sha256(url), github_digest(url)) if c[0]]
+        for published, source in checks:
+            if published != digest:
+                sys.exit(f"ERROR: {url}: computed {digest}, but {source} says {published}")
+        if not checks:
+            print(f"  {arch}: sha256 {digest} (no published checksum or GitHub digest; check the release page)")
         else:
-            print(f"  {arch}: sha256 {digest} (matches {source})")
+            print(f"  {arch}: sha256 {digest} (matches {' and '.join(src for _, src in checks)})")
         block = block.replace(asset["url"], url).replace(asset["sha256"], digest)
     return text[:start] + block + text[end:]
 
